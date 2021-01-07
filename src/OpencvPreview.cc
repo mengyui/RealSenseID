@@ -37,7 +37,15 @@ public:
     CaptureResourceHandle(int camera_number, bool debug_mode)
     {
 #ifdef WIN32
-        cap = cv::VideoCapture(camera_number, cv::CAP_MSMF);
+        for (int i = 10; i >= 0; --i)
+        {
+            auto r = cap.open(i, cv::CAP_MSMF);
+            if (r && camera_number-- <= 0) // skip $(camera_number) good camera
+            {
+                break;
+            }
+            cap.release();
+        }
 #else
         cap = cv::VideoCapture(camera_number, 0);
 #endif
