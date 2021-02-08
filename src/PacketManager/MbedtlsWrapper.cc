@@ -41,6 +41,12 @@ size_t MbedtlsWrapper::GetSignedEcdhPubkeySize()
     return SIGNED_PUBKEY_SIZE;
 }
 
+#ifdef MBEDTLS_ECDH_LEGACY_CONTEXT
+#define CTX(x) x
+#else
+#define CTX(x) x.ctx.mbed_ecdh
+#endif
+
 unsigned char* MbedtlsWrapper::GetSignedEcdhPubkey(SignCallback sign_clbk)
 {
     Reset();
@@ -51,14 +57,15 @@ unsigned char* MbedtlsWrapper::GetSignedEcdhPubkey(SignCallback sign_clbk)
         return nullptr;
     }
 
-    int ret = mbedtls_mpi_write_binary(&_edch_ctx.Q.X, _ecdh_signed_pubkey, ECC_P256_KEY_X_Y_Z_SIZE_BYTES);
+    int ret = mbedtls_mpi_write_binary(&CTX(_edch_ctx).Q.X, _ecdh_signed_pubkey, ECC_P256_KEY_X_Y_Z_SIZE_BYTES);
+
     if (ret != 0)
     {
         LOG_ERROR(LOG_TAG, "Failed! mbedtls_mpi_write_binary returned %d", ret);
         return nullptr;
     }
 
-    ret = mbedtls_mpi_write_binary(&_edch_ctx.Q.Y, _ecdh_signed_pubkey + ECC_P256_KEY_X_Y_Z_SIZE_BYTES,
+    ret = mbedtls_mpi_write_binary(&CTX(_edch_ctx).Q.Y, _ecdh_signed_pubkey + ECC_P256_KEY_X_Y_Z_SIZE_BYTES,
                                    ECC_P256_KEY_X_Y_Z_SIZE_BYTES);
     if (ret != 0)
     {
@@ -78,21 +85,21 @@ unsigned char* MbedtlsWrapper::GetSignedEcdhPubkey(SignCallback sign_clbk)
 
 bool MbedtlsWrapper::VerifyEcdhSignedKey(const unsigned char* ecdh_signed_pubkey, VerifyCallback verify_clbk)
 {
-    int ret = mbedtls_mpi_lset(&_edch_ctx.Qp.Z, 1);
+    int ret = mbedtls_mpi_lset(&CTX(_edch_ctx).Qp.Z, 1);
     if (ret != 0)
     {
         LOG_ERROR(LOG_TAG, "Failed! mbedtls_mpi_lset returned %d", ret);
         return false;
     }
 
-    ret = mbedtls_mpi_read_binary(&_edch_ctx.Qp.X, ecdh_signed_pubkey, ECC_P256_KEY_X_Y_Z_SIZE_BYTES);
+    ret = mbedtls_mpi_read_binary(&CTX(_edch_ctx).Qp.X, ecdh_signed_pubkey, ECC_P256_KEY_X_Y_Z_SIZE_BYTES);
     if (ret != 0)
     {
         LOG_ERROR(LOG_TAG, "Failed! mbedtls_mpi_read_binary ecdh_signed_pubkey X returned %d", ret);
         return false;
     }
 
-    ret = mbedtls_mpi_read_binary(&_edch_ctx.Qp.Y, ecdh_signed_pubkey + ECC_P256_KEY_X_Y_Z_SIZE_BYTES,
+    ret = mbedtls_mpi_read_binary(&CTX(_edch_ctx).Qp.Y, ecdh_signed_pubkey + ECC_P256_KEY_X_Y_Z_SIZE_BYTES,
                                   ECC_P256_KEY_X_Y_Z_SIZE_BYTES);
     if (ret != 0)
     {
@@ -114,7 +121,7 @@ bool MbedtlsWrapper::VerifyEcdhSignedKey(const unsigned char* ecdh_signed_pubkey
         return false;
     }
 
-    ret = mbedtls_ecdh_compute_shared(&_edch_ctx.grp, &_edch_ctx.z, &_edch_ctx.Qp, &_edch_ctx.d,
+    ret = mbedtls_ecdh_compute_shared(&CTX(_edch_ctx).grp, &CTX(_edch_ctx).z, &CTX(_edch_ctx).Qp, &CTX(_edch_ctx).d,
                                       mbedtls_ctr_drbg_random, &_ctr_drbg_ctx);
     if (ret != 0)
     {
@@ -122,7 +129,7 @@ bool MbedtlsWrapper::VerifyEcdhSignedKey(const unsigned char* ecdh_signed_pubkey
         return false;
     }
 
-    ret = mbedtls_mpi_write_binary(&_edch_ctx.z, _shared_secret, ECC_P256_KEY_X_Y_Z_SIZE_BYTES);
+    ret = mbedtls_mpi_write_binary(&CTX(_edch_ctx).z, _shared_secret, ECC_P256_KEY_X_Y_Z_SIZE_BYTES);
     if (ret != 0)
     {
         LOG_ERROR(LOG_TAG, "Failed! mbedtls_mpi_write_binary returned %d", ret);
@@ -188,14 +195,15 @@ bool MbedtlsWrapper::GenerateEcdhKey()
         return false;
     }
 
-    ret = mbedtls_ecp_group_load(&_edch_ctx.grp, MBEDTLS_ECP_DP_SECP256R1);
+    ret = mbedtls_ecp_group_load(&CTX(_edch_ctx).grp, MBEDTLS_ECP_DP_SECP256R1);
     if (ret != 0)
     {
         LOG_ERROR(LOG_TAG, "Failed! mbedtls_ecp_group_load returned %d", ret);
         return false;
     }
 
-    ret = mbedtls_ecdh_gen_public(&_edch_ctx.grp, &_edch_ctx.d, &_edch_ctx.Q, mbedtls_ctr_drbg_random, &_ctr_drbg_ctx);
+    ret = mbedtls_ecdh_gen_public(&CTX(_edch_ctx).grp, &CTX(_edch_ctx).d, &CTX(_edch_ctx).Q, mbedtls_ctr_drbg_random,
+                                  &_ctr_drbg_ctx);
     if (ret != 0)
     {
         LOG_ERROR(LOG_TAG, "Failed! mbedtls_ecdh_gen_public returned %d", ret);
