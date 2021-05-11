@@ -16,8 +16,11 @@ namespace PacketManager
 class Timer
 {
 public:
+#ifndef STM32_HAL
     using clock = std::chrono::steady_clock;
-    
+#else
+    using clock = std::chrono::system_clock;
+#endif
     Timer();
     explicit Timer(timeout_t timeout);
     
@@ -28,7 +31,11 @@ public:
 
 private:
     timeout_t _timeout;
+#ifndef STM32_HAL
     std::chrono::time_point<clock> _start_tp;
+#else
+    uint32_t _start_tp;
+#endif
 };
 } // namespace PacketManager
 } // namespace RealSenseID

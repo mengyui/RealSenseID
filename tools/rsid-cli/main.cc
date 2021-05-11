@@ -21,12 +21,36 @@
 #include <memory>
 #include <map>
 #include <set>
+#ifndef STM32_HAL
 #include <thread>
+#else
+#include "utils.h"
+#endif
 
 #ifdef RSID_SECURE
 #include "secure_mode_helper.h"
+#ifndef STM32_HAL
 // signer object to store public keys of the host and device
 static RealSenseID::Examples::SignHelper s_signer;
+#else
+RealSenseID::Examples::SignHelper * p_signer = nullptr;
+#define s_signer (*p_signer)
+void PerPareSignHelper()
+{
+	if (!p_signer)
+	{
+		p_signer = new RealSenseID::Examples::SignHelper();
+	}
+}
+void Release()
+{
+	if (p_signer)
+	{
+		delete p_signer;
+		p_signer = nullptr;
+	}
+}
+#endif
 #endif // RSID_SECURE
 
 // map of user-id->faceprint_pair to demonstrate faceprints feature.
@@ -44,6 +68,9 @@ static RealSenseID::EnrollStatus s_last_enroll_faceprint_status;
 std::unique_ptr<RealSenseID::FaceAuthenticator> CreateAuthenticator(const RealSenseID::SerialConfig& serial_config)
 {
 #ifdef RSID_SECURE
+#ifdef STM32_HAL
+    PerPareSignHelper();
+#endif
     auto authenticator = std::make_unique<RealSenseID::FaceAuthenticator>(&s_signer);
 #else
     auto authenticator = std::make_unique<RealSenseID::FaceAuthenticator>();
@@ -172,6 +199,9 @@ void remove_users(const RealSenseID::SerialConfig& serial_config)
 #ifdef RSID_SECURE
 void pair_device(const RealSenseID::SerialConfig& serial_config)
 {
+#ifdef STM32_HAL
+    PerPareSignHelper();
+#endif
     auto authenticator = CreateAuthenticator(serial_config);
     char* host_pubkey = (char*)s_signer.GetHostPubKey();
     char host_pubkey_signature[32] = {0};
@@ -358,8 +388,11 @@ void ping_device(const RealSenseID::SerialConfig& serial_config, int iters)
         std::cout << "Failed connecting to port " << serial_config.port << " status:" << connect_status << std::endl;
         return;
     }
-
+#ifndef STM32_HAL
     using clock = std::chrono::steady_clock;
+#else
+    using clock = std::chrono::system_clock;
+#endif
     for (int i = 0; i < iters; i++)
     {
         auto start_time = clock::now();
@@ -371,7 +404,11 @@ void ping_device(const RealSenseID::SerialConfig& serial_config, int iters)
             printf("Ping error\n\n");
             break;
         }
+#ifndef STM32_HAL
         std::this_thread::sleep_for(std::chrono::milliseconds {5});
+#else
+        ::usleep(5000);
+#endif
     }
 }
 
@@ -624,9 +661,14 @@ void sample_loop(const RealSenseID::SerialConfig& serial_config)
     while (is_running)
     {
         print_menu();
-
+#ifndef STM32_HAL
         if (!std::getline(std::cin, input))
             continue;
+#else
+        char _input[16];
+        scanf("%s", _input);
+        input = _input;
+#endif
 
         if (input.empty() || input.length() > 1)
             continue;
@@ -640,7 +682,12 @@ void sample_loop(const RealSenseID::SerialConfig& serial_config)
             do
             {
                 std::cout << "User id to enroll: ";
+#ifndef STM32_HAL
                 std::getline(std::cin, user_id);
+#else
+                scanf("%s", _input);
+                user_id = _input;
+#endif
             } while (user_id.empty());
             do_enroll(serial_config, user_id.c_str());
             break;
@@ -798,7 +845,12 @@ void sample_loop(const RealSenseID::SerialConfig& serial_config)
             do
             {
                 std::cout << "User id to enroll: ";
+#ifndef STM32_HAL
                 std::getline(std::cin, user_id);
+#else
+                scanf("%s", _input);
+                user_id = _input;
+#endif
             } while (user_id.empty());
             enroll_faceprints(serial_config, user_id.c_str());
             break;
@@ -822,8 +874,12 @@ void sample_loop(const RealSenseID::SerialConfig& serial_config)
         }
     }
 }
-
+#ifndef STM32_HAL
 int main(int argc, char* argv[])
+#else
+extern "C" int cpp_main(int argc, char* argv[]);
+int cpp_main(int argc, char* argv[])
+#endif
 {
     auto config = config_from_argv(argc, argv);
     sample_loop(config);

@@ -15,7 +15,11 @@
 #include <cassert>
 #include <cstdint>
 #include <stdexcept>
+#ifndef STM32_HAL
 #include <thread>
+#else
+#include "utils.h"
+#endif
 #include <chrono>
 
 #ifdef _WIN32
@@ -24,6 +28,8 @@
 #include "PacketManager/LinuxSerial.h"
 #elif ANDROID
 #include "PacketManager/AndroidSerial.h"
+#elif defined(STM32_HAL)
+#include "McuSerial.h"
 #else
 #error "Platform not supported"
 #endif //_WIN32
@@ -71,6 +77,8 @@ Status FaceAuthenticatorImpl::Connect(const SerialConfig& config)
         _serial = std::make_unique<PacketManager::WindowsSerial>(serial_config);
 #elif LINUX
         _serial = std::make_unique<PacketManager::LinuxSerial>(serial_config);
+#elif defined(STM32_HAL)
+        _serial = std::make_unique<PacketManager::McuSerial>(serial_config);
 #else
         LOG_ERROR(LOG_TAG, "Serial connection method not supported for OS");
         return Status::Error;
@@ -537,22 +545,41 @@ Status FaceAuthenticatorImpl::Authenticate(AuthenticationCallback& callback)
 }
 
 // wait for cancel flag while sleeping upto timeout
+#ifndef STM32_HAL
 void FaceAuthenticatorImpl::AuthLoopSleep(std::chrono::milliseconds timeout)
+#else
+void FaceAuthenticatorImpl::AuthLoopSleep(uint32_t time_out) // using timeout_t = uint32_t;
+#endif
 {
-    PacketManager::Timer timer {timeout};
+    PacketManager::Timer timer {time_out};
+#ifndef STM32_HAL
     LOG_DEBUG(LOG_TAG, "AuthLoopSleep upto %zu millis", timeout.count());
+#else
+    LOG_DEBUG(LOG_TAG, "AuthLoopSleep upto %zu millis", time_out);
+#endif
     // sleep in small interval to stop sleep if we got canceled
     while (!timer.ReachedTimeout() && !_cancel_loop)
     {
+#ifndef STM32_HAL
         auto sleep_interval = std::chrono::milliseconds {500};
+#else
+        auto sleep_interval = uint32_t(500);
+#endif
         if (timer.TimeLeft() < sleep_interval)
         {
-            sleep_interval = timer.TimeLeft();
+            sleep_interval = timer.TimeLeft();            
+#ifndef STM32_HAL
             assert(sleep_interval > PacketManager::timeout_t::zero());
-        }
-
+#else
+            assert(sleep_interval > uint32_t(0));
+#endif
+        }      
+#ifndef STM32_HAL
         std::this_thread::sleep_for(sleep_interval);
-    }
+#else
+				usleep(sleep_interval * 1000);
+#endif
+    }    
 }
 
 

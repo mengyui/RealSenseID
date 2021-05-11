@@ -16,6 +16,8 @@
 #include "PacketManager/LinuxSerial.h"
 #elif ANDROID
 #include "PacketManager/AndroidSerial.h"
+#elif defined(STM32_HAL)
+#include "McuSerial.h"
 #else
 #error "Platform not supported"
 #endif //_WIN32
@@ -37,6 +39,8 @@ Status DeviceControllerImpl::Connect(const SerialConfig& config)
         _serial = std::make_unique<PacketManager::WindowsSerial>(serial_config);
 #elif LINUX
         _serial = std::make_unique<PacketManager::LinuxSerial>(serial_config);
+#elif defined(STM32_HAL)
+        _serial = std::make_unique<PacketManager::McuSerial>(serial_config);
 #else
         LOG_ERROR(LOG_TAG, "Serial connection method not supported for OS");
         return Status::Error;

@@ -39,6 +39,11 @@ enum class RSID_NO_DISCARD SerialStatus
     CrcError
 };
 
+#ifndef STM32_HAL
 using timeout_t = std::chrono::milliseconds;
+#else
+using timeout_t = uint32_t;
+#endif
+
 } // namespace PacketManager
 } // namespace RealSenseID
