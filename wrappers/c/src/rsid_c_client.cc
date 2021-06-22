@@ -220,7 +220,7 @@ public:
     {
     }
 
-    void OnResult(const RealSenseID::AuthenticateStatus status, const ExtractedFaceprints* faceprints) override
+    void OnResult(const RealSenseID::AuthenticateStatus status, const ExtractedFaceprints& faceprints) override
     {
         if (_faceprints_ext_args.result_clbk)
         {
@@ -228,7 +228,7 @@ public:
 
             if (status == RealSenseID::AuthenticateStatus::Success)
             {
-                copy_to_c_faceprints_ple_ple(*faceprints, &c_faceprints);
+                copy_to_c_faceprints_ple_ple(faceprints, &c_faceprints);
                 _faceprints_ext_args.result_clbk(static_cast<rsid_auth_status>(status), &c_faceprints,
                                                  _faceprints_ext_args.ctx);
             }
@@ -260,7 +260,7 @@ public:
     {
     }
 
-    void OnResult(const RealSenseID::AuthenticateStatus status, const ExtractedFaceprints* faceprints) override
+    void OnResult(const RealSenseID::AuthenticateStatus status, const ExtractedFaceprints& faceprints) override
     {
         if (_faceprints_ext_args.result_clbk)
         {
@@ -268,7 +268,7 @@ public:
 
             if (status == RealSenseID::AuthenticateStatus::Success)
             {
-                copy_to_c_faceprints_ple_ple(*faceprints, &c_faceprints);
+                copy_to_c_faceprints_ple_ple(faceprints, &c_faceprints);
                 _faceprints_ext_args.result_clbk(static_cast<rsid_auth_status>(status), &c_faceprints,
                                                  _faceprints_ext_args.ctx);
             }
@@ -927,7 +927,7 @@ rsid_status rsid_query_number_of_users(rsid_authenticator* authenticator, unsign
 rsid_status rsid_get_users_faceprints(rsid_authenticator* authenticator, rsid_faceprints_t* user_features)
 {
     auto* auth_impl = get_auth_impl(authenticator);
-    RealSenseID::Faceprints user_descriptors[1000]; //@TODO  use a max_users macro
+    std::vector<RealSenseID::Faceprints> user_descriptors(1000); //@TODO  use a max_users macro
     unsigned int num_of_users = 0;
     auto status = static_cast<rsid_status>(auth_impl->GetUsersFaceprints(user_descriptors, num_of_users));
     for (unsigned int i = 0; i < num_of_users; i++)
@@ -941,7 +941,7 @@ rsid_status rsid_set_users_faceprints(rsid_authenticator* authenticator, rsid_us
                                       const unsigned int number_of_users)
 {
     auto* auth_impl = get_auth_impl(authenticator);
-    RealSenseID::UserFaceprints_t user_descriptors[1000]; //@TODO  use a max_users macro
+    std::vector<RealSenseID::UserFaceprints> user_descriptors(1000); //@TODO  use a max_users macro
     for (unsigned int i = 0; i < number_of_users; i++)
     {
         copy_to_cpp_faceprints_dble_dble(&user_features[i].faceprints, user_descriptors[i].faceprints);

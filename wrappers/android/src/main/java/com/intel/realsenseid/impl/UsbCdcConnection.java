@@ -123,7 +123,7 @@ public class UsbCdcConnection {
 
     public void RequestDevicePermission(Context context, final PermissionCallback callback) {
         final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
-        PendingIntent permissionIntent = PendingIntent.getBroadcast(context, 0, new Intent(ACTION_USB_PERMISSION), 0);
+        PendingIntent permissionIntent = PendingIntent.getBroadcast(context, 0, new Intent(ACTION_USB_PERMISSION), PendingIntent.FLAG_UPDATE_CURRENT);
         IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
         final UsbManager manager = m_UsbCdcConnectionDetails.m_usbManager;
         BroadcastReceiver usbPermissionReceiver = new BroadcastReceiver(){

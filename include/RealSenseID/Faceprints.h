@@ -47,12 +47,12 @@ public:
 };
 
 // faceprints plus username element.
-typedef struct UserFaceprints  
-{
-    char        user_id[RSID_MAX_USER_ID_LENGTH_IN_DB];
-    Faceprints  faceprints;
-} UserFaceprints_t;
+    struct UserFaceprints
+    {
+        char        user_id[RSID_MAX_USER_ID_LENGTH_IN_DB];
+        Faceprints  faceprints;
+    };
 
-} // namespace RealSenseID 
+} // namespace RealSenseID
 
 #endif // __FACEPRINTSS__H___

@@ -25,4 +25,7 @@
     <string name="action_unpair">Unpair</string>
     <string name="action_pair">Pair</string>
     <string name="action_firmware_update">Firmware update</string>
+    <string name="action_host_mode">Host mode</string>
+    <string name="action_export_db">Export</string>
+    <string name="action_import_db">Import</string>
 </resources>

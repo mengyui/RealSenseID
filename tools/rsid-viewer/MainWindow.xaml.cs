@@ -1294,12 +1294,12 @@ namespace rsid_wrapper_csharp
         // Enroll callbacks
         private void OnEnrollHint(EnrollStatus hint, IntPtr ctx)
         {
-            ShowLog(hint.ToString());
+            ShowLog("OnEnrollHint: " + hint.ToString());
         }
 
         private void OnEnrollProgress(FacePose pose, IntPtr ctx)
         {
-            ShowLog(pose.ToString());
+            ShowLog("OnEnrollProgress: " + pose.ToString());
         }
 
         private void OnEnrollResult(EnrollStatus status, IntPtr ctx)

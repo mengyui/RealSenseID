@@ -145,14 +145,14 @@ MatchResultHost FaceAuthenticator::MatchFaceprints(MatchElement& new_faceprints,
     return _impl->MatchFaceprints(new_faceprints, existing_faceprints, updated_faceprints, matcher_confidence_level);
 }
 
-Status FaceAuthenticator::GetUsersFaceprints(Faceprints* user_features, unsigned int&num_of_users)
+Status FaceAuthenticator::GetUsersFaceprints(std::vector<Faceprints>& user_features_out, unsigned int&number_of_users_in_out)
 {
-    return _impl->GetUsersFaceprints(user_features, num_of_users);
+    return _impl->GetUsersFaceprints(user_features_out.data(), number_of_users_in_out);
 }
 
-Status FaceAuthenticator::SetUsersFaceprints (UserFaceprints_t * user_features, unsigned int num_of_users)
+Status FaceAuthenticator::SetUsersFaceprints(std::vector<UserFaceprints>& user_features, unsigned int num_of_users)
 {
-    return _impl->SetUsersFaceprints(user_features, num_of_users);
+    return _impl->SetUsersFaceprints(user_features.data(), num_of_users);
 }
 
 } // namespace RealSenseID

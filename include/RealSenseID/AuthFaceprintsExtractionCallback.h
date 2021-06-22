@@ -25,7 +25,7 @@ public:
      * @param[in] status Final authentication status.
      * @param[in] faceprints Pointer to the requested faceprints which were just extracted from the device.     
      */
-    virtual void OnResult(const AuthenticateStatus status, const ExtractedFaceprints* faceprints) = 0;
+    virtual void OnResult(const AuthenticateStatus status, const ExtractedFaceprints& faceprints) = 0;
 
     /**
      * Called to inform the client of problems encountered during the authentication operation.

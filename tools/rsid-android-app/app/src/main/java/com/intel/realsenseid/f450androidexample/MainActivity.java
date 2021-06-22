@@ -3,11 +3,14 @@ package com.intel.realsenseid.f450androidexample;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.text.Layout;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
@@ -17,34 +20,69 @@ import android.view.TextureView;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
 import com.intel.realsenseid.api.AndroidSerialConfig;
+import com.intel.realsenseid.api.AuthFaceprintsExtractionCallback;
 import com.intel.realsenseid.api.AuthenticateStatus;
 import com.intel.realsenseid.api.AuthenticationCallback;
+import com.intel.realsenseid.api.DBFaceprintsElement;
 import com.intel.realsenseid.api.DeviceConfig;
+import com.intel.realsenseid.api.EnrollFaceprintsExtractionCallback;
 import com.intel.realsenseid.api.EnrollStatus;
 import com.intel.realsenseid.api.EnrollmentCallback;
+import com.intel.realsenseid.api.ExtractedFaceprints;
+import com.intel.realsenseid.api.ExtractedFaceprintsElement;
 import com.intel.realsenseid.api.FaceAuthenticator;
 import com.intel.realsenseid.api.FacePose;
+import com.intel.realsenseid.api.FaceRect;
+import com.intel.realsenseid.api.FaceRectVector;
+import com.intel.realsenseid.api.Faceprints;
+import com.intel.realsenseid.api.FaceprintsVector;
+import com.intel.realsenseid.api.MatchElement;
+import com.intel.realsenseid.api.MatchResultHost;
 import com.intel.realsenseid.api.Preview;
 import com.intel.realsenseid.api.PreviewConfig;
 import com.intel.realsenseid.api.PreviewMode;
 import com.intel.realsenseid.api.Status;
+import com.intel.realsenseid.api.UserFaceprints;
+import com.intel.realsenseid.api.UserFaceprintsVector;
 import com.intel.realsenseid.impl.UsbCdcConnection;
 
-import java.util.ArrayList;
-import java.util.List;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.Toolbar;
-import androidx.core.content.ContextCompat;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -167,6 +205,16 @@ public class MainActivity extends AppCompatActivity {
             case R.id.action_firmware_update:
                 switchToFirmwareUpdateUI();
                 break;
+            case R.id.action_host_mode: {
+                OnClickHostMode(item);
+            }
+                break;
+            case R.id.action_export_db:
+                OnClickExportDB();
+                break;
+            case R.id.action_import_db:
+                OnClickImportDB();
+                break;
             default:
                 /**
                  * Very un-elegant, but this is a way to make the code that calls Pair and Unpair
@@ -187,6 +235,38 @@ public class MainActivity extends AppCompatActivity {
                 }).start();
         }
         return true;
+    }
+
+    private void OnClickHostMode(MenuItem item) {
+        String[] permissions = { Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE };
+        boolean hasPermissions = true;
+        for (int i = 0; i < permissions.length; ++i) {
+            if (ContextCompat.checkSelfPermission(
+                    this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                hasPermissions = false; break;
+            }
+        }
+        if (!hasPermissions) {
+            item.setChecked(false);
+            AppendToTextView(this, getResources().getString(R.string.permission_not_granted));
+            AppendToTextView(this, "Please click the button again.");
+            ActivityCompat.requestPermissions(this, permissions, 65536);
+            return;
+        }
+
+        m_hostMode = item.isChecked();
+
+        MenuItem export_db = m_optionsMenu.findItem(R.id.action_export_db);
+        if (export_db != null) export_db.setEnabled(!m_hostMode);
+        MenuItem import_db = m_optionsMenu.findItem(R.id.action_import_db);
+        if (import_db != null) import_db.setEnabled(!m_hostMode);
+        if (m_hostMode) {
+            LoadHostModeDB();
+            AppendToTextView(this, String.format("Host Mode: ON"));
+        } else {
+            m_hostModeDB.clear();
+            AppendToTextView(this, String.format("Host Mode: OFF"));
+        }
     }
 
     private void switchToFirmwareUpdateUI() {
@@ -237,15 +317,16 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onStart() {
-        Log.d(TAG, "onStart");
+        Log.d(TAG, "!!!!! onStart");
         super.onStart();
         buildFaceBiometricsOnThread();
+        m_keepFAAlive = false;
     }
 
     @Override
     protected void onStop() {
-        Log.d(TAG, "onStop");
-        DeconstructFaceAuthenticator();
+        Log.d(TAG, "!!!!! onStop");
+        if (!m_keepFAAlive) DeconstructFaceAuthenticator();
         super.onStop();
     }
 
@@ -267,46 +348,50 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 Log.d(TAG, "AsyncTask: buildFaceBiometricsOnThread");
-                m_UsbCdcConnection = new UsbCdcConnection();
-                if (m_UsbCdcConnection != null) {
-                    Context applicationContext = MainActivity.this.getApplicationContext();
-                    Log.d(TAG, "The class UsbCdcConnection was created");
-                    if (!m_UsbCdcConnection.FindSupportedDevice(applicationContext)) {
-                        AppendToTextView(activity, getResources().getString(R.string.device_not_found));
-                        Log.e(TAG, "Supported USB device not found");
-                        DeconstructFaceAuthenticator();
-                        return;
-                    }
-                    m_UsbCdcConnection.RequestDevicePermission(applicationContext, new UsbCdcConnection.PermissionCallback() {
-
-                        @Override
-                        public void Response(boolean permissionGranted) {
-                            if (permissionGranted && m_UsbCdcConnection.OpenConnection()) {
-                                m_faceAuthenticatorCreator = new FaceAuthenticatorCreator();
-                                AndroidSerialConfig androidSerialConfig = new AndroidSerialConfig();
-                                androidSerialConfig.setFileDescriptor(m_UsbCdcConnection.GetFileDescriptor());
-                                androidSerialConfig.setReadEndpoint(m_UsbCdcConnection.GetReadEndpointAddress());
-                                androidSerialConfig.setWriteEndpoint(m_UsbCdcConnection.GetWriteEndpointAddress());
-                                m_faceAuthenticator = m_faceAuthenticatorCreator.Create(androidSerialConfig);
-                                if (null != m_faceAuthenticator) {
-                                    Log.d(TAG, "FaceAuthenticator class was created");
-                                    DoWhileConnected(() -> {
-                                        updateUIAuthSettingsFromDevice();
-                                    });
-                                    setEnableToList(true);
-                                    buildPreview();
-                                    return;
-                                }
-                            } else {
-                                AppendToTextView(activity, getResources().getString(R.string.permission_not_granted));
-                            }
-                            Log.e(TAG, "Error creating the class FaceAuthenticator");
-                            DeconstructFaceAuthenticator();
-                        }
-                    });
-                }
+                buildFaceBiometrics(activity);
             }
         });
+    }
+
+    private void buildFaceBiometrics(Activity activity) {
+        m_UsbCdcConnection = new UsbCdcConnection();
+        if (m_UsbCdcConnection != null) {
+            Context applicationContext = MainActivity.this.getApplicationContext();
+            Log.d(TAG, "The class UsbCdcConnection was created");
+            if (!m_UsbCdcConnection.FindSupportedDevice(applicationContext)) {
+                AppendToTextView(activity, getResources().getString(R.string.device_not_found));
+                Log.e(TAG, "Supported USB device not found");
+                DeconstructFaceAuthenticator();
+                return;
+            }
+            m_UsbCdcConnection.RequestDevicePermission(applicationContext, new UsbCdcConnection.PermissionCallback() {
+
+                @Override
+                public void Response(boolean permissionGranted) {
+                    if (permissionGranted && m_UsbCdcConnection.OpenConnection()) {
+                        m_faceAuthenticatorCreator = new FaceAuthenticatorCreator();
+                        AndroidSerialConfig androidSerialConfig = new AndroidSerialConfig();
+                        androidSerialConfig.setFileDescriptor(m_UsbCdcConnection.GetFileDescriptor());
+                        androidSerialConfig.setReadEndpoint(m_UsbCdcConnection.GetReadEndpointAddress());
+                        androidSerialConfig.setWriteEndpoint(m_UsbCdcConnection.GetWriteEndpointAddress());
+                        m_faceAuthenticator = m_faceAuthenticatorCreator.Create(androidSerialConfig);
+                        if (null != m_faceAuthenticator) {
+                            Log.d(TAG, "FaceAuthenticator class was created");
+                            DoWhileConnected(() -> {
+                                updateUIAuthSettingsFromDevice();
+                            });
+                            setEnableToList(true);
+                            buildPreview();
+                            return;
+                        }
+                    } else {
+                        AppendToTextView(activity, getResources().getString(R.string.permission_not_granted));
+                    }
+                    Log.e(TAG, "Error creating the class FaceAuthenticator");
+                    DeconstructFaceAuthenticator();
+                }
+            });
+        }
     }
 
     private void updateUIAuthSettingsFromDevice() {
@@ -352,12 +437,12 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        Log.d(TAG, "onResume");
+        Log.d(TAG, "!!!!! onResume");
     }
 
     @Override
     protected void onPause() {
-        Log.d(TAG, "onPause");
+        Log.d(TAG, "!!!!! onPause");
         super.onPause();
     }
 
@@ -396,6 +481,7 @@ public class MainActivity extends AppCompatActivity {
 
                 EnrollmentPoseTracker poseTracker = new EnrollmentPoseTracker(enrollmentRequiredPoses);
                 EnrollmentCallback enrollmentCallback = new EnrollmentCallback() {
+                    @Override
                     public void OnResult(EnrollStatus status) {
                         if (status == EnrollStatus.Success) {
                             Log.d(TAG, "Enrollment completed successfully");
@@ -408,6 +494,7 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
 
+                    @Override
                     public void OnProgress(FacePose pose) {
                         poseTracker.markPoseCheck(pose);
                         FacePose nextPose = poseTracker.getNext();
@@ -417,14 +504,72 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
 
+                    @Override
                     public void OnHint(EnrollStatus hint) {
                         Log.d(TAG, String.format("Enrollment hint: %s", hint.toString()));
                         if (hint != EnrollStatus.CameraStarted && hint != EnrollStatus.CameraStopped && hint != EnrollStatus.FaceDetected && hint != EnrollStatus.LedFlowSuccess)
                             AppendToTextView(activity, hint.toString());
                     }
+
+                    @Override
+                    public void OnFaceDetected(FaceRectVector faces, long ts) {
+                        //super.OnFaceDetected(faces, ts);
+                        MainActivity.this.LogInfoFaceRectVector(faces, ts);
+                    }
+                };
+                EnrollFaceprintsExtractionCallback enrollFaceprintsExtractionCallback = new EnrollFaceprintsExtractionCallback() {
+                    @Override
+                    public void OnResult(EnrollStatus status, ExtractedFaceprints faceprints) {
+                        //super.OnResult(status, faceprints);
+                        //Log.d(TAG, String.format("OnResult: %s %s", status.toString(), faceprints.toString()));
+                        if (status == EnrollStatus.Success) {
+                            Log.d(TAG, "Enrollment completed successfully");
+                            HostModeDBItem item = new HostModeDBItem(UserId);
+                            item.setFeatures(faceprints.getData());
+                            short[] desc = item.features.getData().getEnrollmentDescriptor();
+                            Log.d(TAG, desc.toString());
+                            m_hostModeDB.add(item);
+                            AppendToTextView(activity, getResources().getString(R.string.enroll_success));
+                            SaveHodeModeDB();
+                        } else {
+                            String msg = String.format("Enrollment failed with status %s", status.toString());
+                            Log.d(TAG, msg);
+                            AppendToTextView(activity, msg);
+                        }
+                    }
+
+                    @Override
+                    public void OnProgress(FacePose pose) {
+                        //super.OnProgress(pose);
+                        poseTracker.markPoseCheck(pose);
+                        FacePose nextPose = poseTracker.getNext();
+                        if (nextPose != null) {
+                            ToastOnUIThread(activity, "Turn face towards: " + nextPose.toString(), Toast.LENGTH_SHORT);
+                            Log.d(TAG, String.format("OnProgress: Enrollment progress. pose: %s", pose.toString()));
+                        }
+                    }
+
+                    @Override
+                    public void OnHint(EnrollStatus hint) {
+                        //super.OnHint(hint);
+                        Log.d(TAG, String.format("OnHint: Enrollment hint: %s", hint.toString()));
+                        if (hint != EnrollStatus.CameraStarted && hint != EnrollStatus.CameraStopped && hint != EnrollStatus.FaceDetected && hint != EnrollStatus.LedFlowSuccess)
+                            AppendToTextView(activity, hint.toString());
+                    }
+
+                    @Override
+                    public void OnFaceDetected(FaceRectVector faces, long ts) {
+                        //super.OnFaceDetected(faces, ts);
+                        MainActivity.this.LogInfoFaceRectVector(faces, ts);
+                    }
                 };
                 DoWhileConnected(() -> {
-                    Status enrollStatus = m_faceAuthenticator.Enroll(enrollmentCallback, UserId);
+                    Status enrollStatus = Status.Error;
+                    if (MainActivity.this.m_hostMode) {
+                        enrollStatus = m_faceAuthenticator.ExtractFaceprintsForEnroll(enrollFaceprintsExtractionCallback);
+                    } else {
+                        enrollStatus = m_faceAuthenticator.Enroll(enrollmentCallback, UserId);
+                    }
                     Log.d(TAG, "Enrollment done with status: " + enrollStatus.toString());
                     setEnableToList(true);
                 });
@@ -443,7 +588,6 @@ public class MainActivity extends AppCompatActivity {
         if (m_faceAuthenticator != null)
             m_faceAuthenticator.Disconnect();
     }
-
 
     public void ExecuteEnrollCancel(View view) {
         ShowMainUI();
@@ -504,6 +648,7 @@ public class MainActivity extends AppCompatActivity {
             public void run() {
                 // a potentially time consuming task
                 AuthenticationCallback authenticationCallback = new AuthenticationCallback() {
+                    @Override
                     public void OnResult(AuthenticateStatus status, String userId) {
                         if (status == AuthenticateStatus.Success) {
                             Log.d(TAG, String.format("Authentication allowed. UserId %s", userId));
@@ -514,14 +659,60 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
 
+                    @Override
                     public void OnHint(AuthenticateStatus hint) {
                         Log.d(TAG, String.format("Authentication hint: %s", hint.toString()));
                         if (hint != AuthenticateStatus.CameraStarted && hint != AuthenticateStatus.CameraStopped && hint != AuthenticateStatus.FaceDetected && hint != AuthenticateStatus.LedFlowSuccess)
                             AppendToTextView(activity, hint.toString());
                     }
+
+                    @Override
+                    public void OnFaceDetected(FaceRectVector faces, long ts) {
+                        //super.OnFaceDetected(faces, ts);
+                        MainActivity.this.LogInfoFaceRectVector(faces, ts);
+                    }
+                };
+                AuthFaceprintsExtractionCallback authFaceprintsExtractionCallback = new AuthFaceprintsExtractionCallback() {
+                    @Override
+                    public void OnResult(AuthenticateStatus status, ExtractedFaceprints faceprints) {
+                        //super.OnResult(status, faceprints);
+                        if (status == AuthenticateStatus.Success) {
+                            String userId = MainActivity.this.MatchFaceprintsInDB(faceprints);
+                            if (userId != null && !userId.isEmpty()) {
+                                Log.d(TAG, String.format("Authentication allowed. UserId %s", userId));
+                                AppendToTextView(activity, getResources().getString(R.string.authenticate_greet) + " " + userId);
+                            } else {
+                                Log.d(TAG, String.format("Authentication FAILED. NO_USER"));
+                                AppendToTextView(activity, "NO USER found in DB. " + getResources().getString(R.string.authenticate_forbidden));
+                            }
+                        } else {
+                            Log.d(TAG, "Authentication forbidden");
+                            AppendToTextView(activity, getResources().getString(R.string.authenticate_forbidden));
+                        }
+                    }
+
+                    @Override
+                    public void OnHint(AuthenticateStatus hint) {
+                        //super.OnHint(hint);
+                        Log.d(TAG, String.format("Authentication hint: %s", hint.toString()));
+                        if (hint != AuthenticateStatus.CameraStarted && hint != AuthenticateStatus.CameraStopped && hint != AuthenticateStatus.FaceDetected && hint != AuthenticateStatus.LedFlowSuccess)
+                            AppendToTextView(activity, hint.toString());
+
+                    }
+
+                    @Override
+                    public void OnFaceDetected(FaceRectVector faces, long ts) {
+                        //super.OnFaceDetected(faces, ts);
+                        MainActivity.this.LogInfoFaceRectVector(faces, ts);
+                    }
                 };
                 DoWhileConnected(() -> {
-                    Status authenticateStatus = m_faceAuthenticator.Authenticate(authenticationCallback);
+                    Status authenticateStatus = Status.Error;
+                    if (MainActivity.this.m_hostMode) {
+                        authenticateStatus = m_faceAuthenticator.ExtractFaceprintsForAuth(authFaceprintsExtractionCallback);
+                    } else {
+                        authenticateStatus = m_faceAuthenticator.Authenticate(authenticationCallback);
+                    }
                     Log.d(TAG, "Authentication done with status: " + authenticateStatus.toString());
                     setEnableToList(true);
                 });
@@ -556,19 +747,64 @@ public class MainActivity extends AppCompatActivity {
             public void run() {
                 // a potentially time consuming task
                 AuthenticationCallback authenticationCallback = new AuthenticationCallback() {
+                    @Override
                     public void OnResult(AuthenticateStatus status, String userId) {
                         if (status == AuthenticateStatus.Success) {
                             Log.d(TAG, String.format("Authentication allowed. UserId %s", userId));
                             AppendToTextView(activity, getResources().getString(R.string.authenticate_greet) + " " + userId);
                         }
                     }
-
+                    @Override
                     public void OnHint(AuthenticateStatus hint) {
                         Log.d(TAG, String.format("Authentication hint: %s", hint.toString()));
                     }
+
+                    @Override
+                    public void OnFaceDetected(FaceRectVector faces, long ts) {
+                        super.OnFaceDetected(faces, ts);
+                        MainActivity.this.LogInfoFaceRectVector(faces, ts);
+                    }
+                };
+                AuthFaceprintsExtractionCallback authFaceprintsExtractionCallback = new AuthFaceprintsExtractionCallback() {
+                    @Override
+                    public void OnResult(AuthenticateStatus status, ExtractedFaceprints faceprints) {
+                        //super.OnResult(status, faceprints);
+                        if (status == AuthenticateStatus.Success) {
+                            String userId = MainActivity.this.MatchFaceprintsInDB(faceprints);
+                            if (userId != null) {
+                                Log.d(TAG, String.format("== Authentication allowed. UserId %s", userId));
+                                AppendToTextView(activity, getResources().getString(R.string.authenticate_greet) + " " + userId);
+                            } else {
+                                Log.d(TAG, String.format("== Authentication FAILED. NO_USER"));
+                                AppendToTextView(activity, "NO matched USER in DB. " + getResources().getString(R.string.authenticate_forbidden));
+                            }
+                        } else {
+                            Log.d(TAG, "== status is NOT Success");
+                            Log.d(TAG, status.toString());
+                            AppendToTextView(activity, getResources().getString(R.string.authenticate_forbidden));
+                        }
+                    }
+
+                    @Override
+                    public void OnHint(AuthenticateStatus hint) {
+                        //super.OnHint(hint);
+                        Log.d(TAG, String.format("Authentication hint: %s", hint.toString()));
+                    }
+
+                    @Override
+                    public void OnFaceDetected(FaceRectVector faces, long ts) {
+                        //super.OnFaceDetected(faces, ts);
+                        MainActivity.this.LogInfoFaceRectVector(faces, ts);
+                    }
                 };
                 DoWhileConnected(() -> {
-                    Status authenticateStatus = m_faceAuthenticator.AuthenticateLoop(authenticationCallback);
+                    Status authenticateStatus = Status.Error;
+                    Log.d(TAG, "== HOST MODE: " + (MainActivity.this.m_hostMode? "ON": "OFF"));
+                    if (MainActivity.this.m_hostMode) {
+                        authenticateStatus = m_faceAuthenticator.ExtractFaceprintsForAuthLoop(authFaceprintsExtractionCallback);
+                    } else {
+                        authenticateStatus = m_faceAuthenticator.AuthenticateLoop(authenticationCallback);
+                    }
                     Log.d(TAG, "AuthenticationLoop done with status: " + authenticateStatus.toString());
                     setEnableToList(true);
                 });
@@ -621,6 +857,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void ExecuteRemoveAll(View view) {
+        if (m_hostMode) {
+            ExecuteRemoveAllHostMode();
+            return;
+        }
         Log.d(TAG, "ExecuteRemoveAll");
         if (m_faceAuthenticator == null) {
             Log.d(TAG, "faceAuthenticator is null");
@@ -675,6 +915,11 @@ public class MainActivity extends AppCompatActivity {
 
     private void FetchUserIds() {
         NotifyAboutDeviceQuery();
+        if (m_hostMode) {
+            FetchUserIdsHostMode();
+            return;
+        }
+
         long[] numberOfUsers = new long[] {0};
         Status s = m_faceAuthenticator.QueryNumberOfUsers(numberOfUsers);
         if (s != Status.Ok) {
@@ -701,6 +946,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void RemoveSelected(View view) {
+        if (m_hostMode) {
+            RemoveSelectedHostMode();
+            return;
+        }
         setEnableToList(false);
         findViewById(R.id.btn_remove_selected).setEnabled(false);
         final Activity activity = this;
@@ -723,5 +972,403 @@ public class MainActivity extends AppCompatActivity {
                 UpdateUsersList();
             }
         }).start();
+    }
+
+    ////////////////
+    public void LogInfoFaceRectVector(FaceRectVector faces, long ts) {
+        Log.d(TAG, String.format("OnFaceDetected: %s ts: %d", faces.toString(), ts));
+        for (int i = 0; i < faces.size(); ++i) {
+            FaceRect fr = faces.get(i);
+            Log.d(TAG, String.format("\tFace:%d (%d, %d) - (%d, %d)", i, fr.getX(), fr.getY(), fr.getW(), fr.getH()));
+        }
+    }
+
+    ////////////////
+    class HostModeDBItem {
+        public String     user_id;
+        public Faceprints features;
+
+        public HostModeDBItem(String id) {
+            this.user_id = id;
+            this.features = new Faceprints();
+        }
+
+        public void setFeatures(ExtractedFaceprintsElement faceprints) {
+            DBFaceprintsElement data = new DBFaceprintsElement();
+            data.setVersion(faceprints.getVersion());
+            data.setFeaturesType(faceprints.getFeaturesType());
+            data.setFlags(faceprints.getFlags());
+            data.setEnrollmentDescriptor(faceprints.getFeaturesVector());
+            data.setAdaptiveDescriptorWithoutMask(faceprints.getFeaturesVector());
+            data.setAdaptiveDescriptorWithMask(faceprints.getFeaturesVector());
+            this.features.setData(data);
+        }
+    };
+    boolean m_hostMode = false;
+    List<HostModeDBItem> m_hostModeDB = new ArrayList<>();
+
+    public String MatchFaceprintsInDB(ExtractedFaceprints faceprints) {
+        for (HostModeDBItem item : m_hostModeDB) {
+            MatchElement new_faceprints = new MatchElement();
+            new_faceprints.setData(faceprints.getData());
+
+            Faceprints existing_faceprints = item.features;
+            Faceprints updated_faceprints = new Faceprints();
+
+            MatchResultHost matchResultHost = m_faceAuthenticator.MatchFaceprints(new_faceprints, existing_faceprints, updated_faceprints);
+            if (matchResultHost.getSuccess()) {
+                return item.user_id;
+            }
+        }
+        return new String("");
+    }
+
+    void LoadHostModeDB() {
+        // /sdcard/RSID_hostmode.db
+        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "RSID_hostmode.db");
+        try {
+            FileInputStream fi = new FileInputStream(file);
+            String content = new String(getBytes(fi), StandardCharsets.UTF_8);
+            fi.close();
+            LoadHostModeDBFromJSON(content);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    void SaveHodeModeDB() {
+        // /sdcard/RSID_hostmode.db
+        String content = SaveHostModeDBToJSON();
+        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "RSID_hostmode.db");
+        try {
+            BufferedWriter bw = new BufferedWriter(new FileWriter(file));
+            bw.write(content);
+            bw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+
+        }
+    }
+    void FetchUserIdsHostMode() {
+        int numberOfUsers = m_hostModeDB.size();
+
+        m_userIds.clear();
+        if (numberOfUsers <= 0) {
+            return;
+        }
+        for (int i = 0 ; i < numberOfUsers; ++i) {
+            m_userIds.add(m_hostModeDB.get(i).user_id);
+        }
+    }
+    void RemoveSelectedHostMode() {
+        setEnableToList(false);
+        int target = -1;
+        for (int i = 0; i < m_hostModeDB.size(); ++i) {
+            if (m_hostModeDB.get(i).user_id == m_selectedId) {
+                target = i;
+                break;
+            }
+        }
+        m_hostModeDB.remove(target);
+        FetchUserIds();
+        setEnableToList(true);
+
+        UpdateUsersList();
+
+        SaveHodeModeDB();
+    }
+    void ExecuteRemoveAllHostMode() {
+        setEnableToList(false);
+        AppendToTextView(this, getResources().getString(R.string.remove_all_success));
+
+        m_hostModeDB.clear();
+        SaveHodeModeDB();
+
+        FetchUserIds();
+        setEnableToList(true);
+
+        UpdateUsersList();
+    }
+
+        ////////////////
+    boolean m_keepFAAlive = false;
+    final int REQUEST_CODE_EXPORT_DB = 0;
+    final int REQUEST_CODE_IMPORT_DB = 1;
+    void OnClickExportDB() {
+        Toast.makeText(MainActivity.this, "Exportint user DB ...", Toast.LENGTH_LONG);
+//        m_keepFAAlive = true;
+//        String timestamp = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+//        String filename = "F450-" + timestamp + ".json";
+//        OpenDocumentPicker(Intent.ACTION_CREATE_DOCUMENT, REQUEST_CODE_EXPORT_DB, filename);
+
+        // SAVE TO /sdcard/Download/RSID_exported.json
+        String content = ExecExportDBToJSON();
+        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "RSID_exported.json");
+        try {
+            BufferedWriter bw = new BufferedWriter(new FileWriter(file));
+            bw.write(content);
+            bw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+
+        }
+        AppendToTextView(this, "Export User DB to /sdcard/RSID_exported.json");
+    }
+
+    void OnClickImportDB() {
+        Toast.makeText(MainActivity.this, "Import user DB ...", Toast.LENGTH_LONG);
+//        m_keepFAAlive = true;
+//        OpenDocumentPicker(Intent.ACTION_OPEN_DOCUMENT, REQUEST_CODE_IMPORT_DB, null);
+
+        // LOAD FROM /sdcard/Download/RSID_exported.json
+        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "RSID_exported.json");
+        try {
+            FileInputStream fi = new FileInputStream(file);
+            String content = new String(getBytes(fi), StandardCharsets.UTF_8);
+            fi.close();
+            ExecImportDBFromJSON(content);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        AppendToTextView(this, "Import User DB from /sdcard/RSID_exported.json");
+    }
+
+    void OpenDocumentPicker(String action, int requestCode, String defaultName) {
+        Intent intent = new Intent(action).setType("*/*")
+                .addCategory(Intent.CATEGORY_OPENABLE);
+        if (defaultName != null) {
+            intent.putExtra(Intent.EXTRA_TITLE, defaultName);
+        }
+        startActivityForResult(intent, requestCode);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable @org.jetbrains.annotations.Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != Activity.RESULT_OK) return;
+        if ((data == null) || (data.getData() == null)) return;
+
+        ToastOnUIThread(MainActivity.this, "Please waiting ...", Toast.LENGTH_LONG);
+
+        Log.d(TAG, "!!!! onActivityResult?");
+        if (true) {
+
+            Uri uri = data.getData();
+            getContentResolver().takePersistableUriPermission(uri, requestCode);
+
+            if (REQUEST_CODE_EXPORT_DB == requestCode) {
+                try {
+                    String content = ExecExportDBToJSON();
+                    Log.d(TAG, "!! S " + content);
+                    OutputStream outputStream = getContentResolver().openOutputStream(uri);
+                    outputStream.write(content.getBytes());
+                    outputStream.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            } else if (REQUEST_CODE_IMPORT_DB == requestCode) {
+                try {
+                    String content = new String(getBytes(getContentResolver().openInputStream(uri)), StandardCharsets.UTF_8);
+                    Log.d(TAG, "!! L " + content);
+                    ExecImportDBFromJSON(content);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            ToastOnUIThread(MainActivity.this, "Done!", Toast.LENGTH_LONG);
+        }
+    }
+
+    public byte[] getBytes(InputStream inputStream) throws IOException {
+        ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
+        int bufferSize = 1024;
+        byte[] buffer = new byte[bufferSize];
+
+        int len = 0;
+        while ((len = inputStream.read(buffer)) != -1) {
+            byteBuffer.write(buffer, 0, len);
+        }
+        return byteBuffer.toByteArray();
+    }
+
+    String ExecExportDBToJSON() {
+        final String[] ret = {""};
+
+        DoWhileConnected(() -> {
+            long[] number_of_users = new long[] {0};
+            m_faceAuthenticator.QueryNumberOfUsers(number_of_users);
+
+            String[] ids = new String[(int) number_of_users[0]];
+            // string of ID_MAX_LENGTH characters as a placeholder. not including \0 at the end that is required in char[]
+            Arrays.fill(ids, new String(new char[ID_MAX_LENGTH]));
+
+            m_faceAuthenticator.QueryUserIds(ids, number_of_users);
+
+            FaceprintsVector faceprints = new FaceprintsVector((int) number_of_users[0], new Faceprints());
+            m_faceAuthenticator.GetUsersFaceprints(faceprints, number_of_users);
+
+            try {
+                JSONArray users = new JSONArray();
+                for(int i = 0; i < number_of_users[0]; ++i) {
+                    users.put(i, FaceprintsToJSON(faceprints.get(i).getData(), ids[i]));
+                }
+                JSONObject jsonObject = new JSONObject();
+                jsonObject.put("version", 8);
+                jsonObject.put("db", users);
+
+                ret[0] = jsonObject.toString();
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        });
+
+        return ret[0];
+    }
+
+    void ExecImportDBFromJSON(String json) {
+        try {
+            JSONObject jsonObject = new JSONObject(json);
+            JSONArray users = jsonObject.getJSONArray("db");
+
+            UserFaceprintsVector faceprints = new UserFaceprintsVector(users.length(), new UserFaceprints());
+            for (int i = 0; i < users.length(); ++i) {
+                faceprints.set(i, JSONToUserFaceprints(users.getJSONObject(i)));
+            }
+
+            DoWhileConnected(() -> {
+                m_faceAuthenticator.SetUsersFaceprints(faceprints, users.length());
+            });
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    String SaveHostModeDBToJSON() {
+        String ret = "";
+
+        try {
+            JSONArray users = new JSONArray();
+            for(int i = 0; i < m_hostModeDB.size(); ++i) {
+                users.put(i, FaceprintsToJSON(m_hostModeDB.get(i).features.getData(), m_hostModeDB.get(i).user_id));
+            }
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("version", 8);
+            jsonObject.put("db", users);
+
+            ret = jsonObject.toString();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return ret;
+    }
+    void LoadHostModeDBFromJSON(String json) {
+        try {
+            JSONObject jsonObject = new JSONObject(json);
+            JSONArray users = jsonObject.getJSONArray("db");
+
+            UserFaceprintsVector faceprints = new UserFaceprintsVector(users.length(), new UserFaceprints());
+            for (int i = 0; i < users.length(); ++i) {
+                //faceprints.set(i, JSONToUserFaceprints(users.getJSONObject(i)));
+                UserFaceprints jsonuserfaceprints = JSONToUserFaceprints(users.getJSONObject(i));
+                HostModeDBItem item = new HostModeDBItem(jsonuserfaceprints.getUser_id());
+                item.features = new Faceprints();
+                item.features.setData(jsonuserfaceprints.getFaceprints().getData());
+                m_hostModeDB.add(item);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    JSONObject FaceprintsToJSON(DBFaceprintsElement faceprints, String id) {
+        JSONObject jsonObject = new JSONObject();
+        try {
+            JSONObject jsonFaceprints = new JSONObject();
+            jsonFaceprints.put("reserved", IntArrayToJSONArray(faceprints.getReserved()));
+            jsonFaceprints.put("version", faceprints.getVersion());
+            jsonFaceprints.put("featuresType", faceprints.getFeaturesType());
+            jsonFaceprints.put("flags", faceprints.getFlags());
+            jsonFaceprints.put("enrollmentDescriptor", ShortArrayToJSONArray(faceprints.getEnrollmentDescriptor()));
+            jsonFaceprints.put("adaptiveDescriptorWithMask", ShortArrayToJSONArray(faceprints.getAdaptiveDescriptorWithMask()));
+            jsonFaceprints.put("adaptiveDescriptorWithoutMask", ShortArrayToJSONArray(faceprints.getAdaptiveDescriptorWithoutMask()));
+
+            jsonObject.put("userID", id);
+            jsonObject.put("faceprints", jsonFaceprints);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return jsonObject;
+    }
+
+    UserFaceprints JSONToUserFaceprints(JSONObject jsonObject) {
+        UserFaceprints userFaceprints = new UserFaceprints();
+        try {
+            JSONObject jsonFaceprints = jsonObject.getJSONObject("faceprints");
+            DBFaceprintsElement faceprints = new DBFaceprintsElement();
+            faceprints.setReserved(JSONToIntArray((JSONArray) jsonFaceprints.get("reserved")));
+            faceprints.setVersion(jsonFaceprints.getInt("version"));
+            faceprints.setFeaturesType(jsonFaceprints.getInt("featuresType"));
+            faceprints.setFlags(jsonFaceprints.getInt("flags"));
+            faceprints.setEnrollmentDescriptor(JSONToShortArray((JSONArray) jsonFaceprints.get("enrollmentDescriptor")));
+            faceprints.setAdaptiveDescriptorWithMask(JSONToShortArray((JSONArray) jsonFaceprints.get("adaptiveDescriptorWithMask")));
+            faceprints.setAdaptiveDescriptorWithoutMask(JSONToShortArray((JSONArray) jsonFaceprints.get("adaptiveDescriptorWithoutMask")));
+
+            Faceprints faceprintsObject = new Faceprints();
+            faceprintsObject.setData(faceprints);
+            userFaceprints.setUser_id(jsonObject.getString("userID"));
+            userFaceprints.setFaceprints(faceprintsObject);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return userFaceprints;
+    }
+
+    JSONArray IntArrayToJSONArray(int[] arr) {
+        JSONArray ret = new JSONArray();
+        try {
+            for (int i = 0; i < arr.length; ++i) {
+                ret.put(i, arr[i]);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return ret;
+    }
+    JSONArray ShortArrayToJSONArray(short[] arr) {
+        JSONArray ret = new JSONArray();
+        try {
+            for (int i = 0; i < arr.length; ++i) {
+                ret.put(i, arr[i]);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return ret;
+    }
+    int[] JSONToIntArray(JSONArray jsonArray) {
+        int[] arr = new int[jsonArray.length()];
+        try {
+            for (int i = 0; i < arr.length; ++i) {
+                arr[i] = jsonArray.getInt(i);
+           }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return arr;
+    }
+    short[] JSONToShortArray(JSONArray jsonArray) {
+        short[] arr = new short[jsonArray.length()];
+        try {
+            for (int i = 0; i < arr.length; ++i) {
+                arr[i] = (short) jsonArray.getInt(i);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return arr;
     }
 }

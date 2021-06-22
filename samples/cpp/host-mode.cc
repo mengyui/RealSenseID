@@ -92,7 +92,7 @@ public:
     {
     }
 
-    void OnResult(const RealSenseID::AuthenticateStatus status, const RealSenseID::ExtractedFaceprints* faceprints) override
+    void OnResult(const RealSenseID::AuthenticateStatus status, const RealSenseID::ExtractedFaceprints& faceprints) override
     {
         std::cout << "on_result: status: " << status << std::endl;
 
@@ -103,17 +103,17 @@ public:
         }
 
         RealSenseID::MatchElement scanned_faceprint;        
-        scanned_faceprint.data.version = faceprints->data.version;
-        scanned_faceprint.data.featuresType = faceprints->data.featuresType;
-        int32_t vecFlags = (int32_t)faceprints->data.featuresVector[RSID_INDEX_IN_FEATURES_VECTOR_TO_FLAGS];
+        scanned_faceprint.data.version = faceprints.data.version;
+        scanned_faceprint.data.featuresType = faceprints.data.featuresType;
+        int32_t vecFlags = (int32_t)faceprints.data.featuresVector[RSID_INDEX_IN_FEATURES_VECTOR_TO_FLAGS];
         int32_t opFlags = RealSenseID::FaOperationFlagsEnum::OpFlagAuthWithoutMask;
         if(vecFlags == RealSenseID::FaVectorFlagsEnum::VecFlagValidWithMask)
         {
             opFlags = RealSenseID::FaOperationFlagsEnum::OpFlagAuthWithMask;    
         }
         scanned_faceprint.data.flags = opFlags;
-        static_assert(sizeof(scanned_faceprint.data.featuresVector) == sizeof(faceprints->data.featuresVector), "faceprints without mask sizes does not match");
-        ::memcpy(scanned_faceprint.data.featuresVector, faceprints->data.featuresVector, sizeof(faceprints->data.featuresVector));
+        static_assert(sizeof(scanned_faceprint.data.featuresVector) == sizeof(faceprints.data.featuresVector), "faceprints without mask sizes does not match");
+        ::memcpy(scanned_faceprint.data.featuresVector, faceprints.data.featuresVector, sizeof(faceprints.data.featuresVector));
         
         // try to match the resulting faceprint to one of the faceprints stored in the db
         RealSenseID::Faceprints updated_faceprint;

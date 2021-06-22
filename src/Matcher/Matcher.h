@@ -26,7 +26,7 @@ public:
     // returns updated faceprints if update conditions fulfilled (indicated in result.should_update). 
     // internal thresholds will be used.
     static ExtendedMatchResult MatchFaceprintsToArray(const MatchElement& probe_faceprints,
-                                                      const std::vector<UserFaceprints_t>& existing_faceprints_array,
+                                                      const std::vector<UserFaceprints>& existing_faceprints_array,
                                                       Faceprints& updated_faceprints, 
                                                       const ThresholdsConfidenceEnum confidenceLevel=ThresholdsConfidenceEnum::ThresholdsConfidenceLevel_High);
 
@@ -34,7 +34,7 @@ public:
     // returns updated faceprints if update conditions fulfilled (indicated in result.should_update). 
     // thresholds provided by caller.
     static ExtendedMatchResult MatchFaceprintsToArray(const MatchElement& probe_faceprints,
-                                                      const std::vector<UserFaceprints_t>& existing_faceprints_array,
+                                                      const std::vector<UserFaceprints>& existing_faceprints_array,
                                                       Faceprints& updated_faceprints, const Thresholds& thresholds);
 
     
@@ -63,11 +63,11 @@ private:
     static short GetMsb(const uint32_t ux);
 
     static void FaceMatch(const MatchElement& probe_faceprints,
-                            const std::vector<UserFaceprints_t>& existing_faceprints_array, ExtendedMatchResult& result,
+                            const std::vector<UserFaceprints>& existing_faceprints_array, ExtendedMatchResult& result,
                             const bool& probe_has_mask);
 
     static bool GetScores(const MatchElement& probe_faceprints,
-                          const std::vector<UserFaceprints_t>& existing_faceprints_array, 
+                          const std::vector<UserFaceprints>& existing_faceprints_array, 
                           TagResult& result, const bool& probe_has_mask);
 
     static bool ValidateVector(const feature_t* T1, const uint32_t vec_length = RSID_NUM_OF_RECOGNITION_FEATURES);

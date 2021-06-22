@@ -26,6 +26,7 @@ file(REMOVE ${SWIG_I_FILE})
 
 # Preprocess the swig i file
 set(RealSenseID_HEADERS_FOLDER ${CMAKE_SOURCE_DIR}/include/RealSenseID)
+set(RealSenseID_C_HEADERS_FOLDER ${CMAKE_SOURCE_DIR}/wrappers/c/include)
 configure_file(${SWIG_IN_FILE} ${CMAKE_CURRENT_SOURCE_DIR}/${SWIG_I_FILE})
 
 # Ensure file recognized as C++ (otherwise, exported as C file)

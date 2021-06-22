@@ -169,7 +169,7 @@ void Matcher::HandleThresholdsConfiguration(const bool& probe_has_mask,
 }
 
 bool Matcher::GetScores(const MatchElement& probe_faceprints,
-                        const std::vector<UserFaceprints_t>& existing_faceprints_array, 
+                        const std::vector<UserFaceprints>& existing_faceprints_array, 
                         TagResult& result, const bool& probe_has_mask)
 {
     
@@ -249,7 +249,7 @@ bool Matcher::GetScores(const MatchElement& probe_faceprints,
 }
 
 void Matcher::FaceMatch(const MatchElement& probe_faceprints,
-                        const std::vector<UserFaceprints_t>& existing_faceprints_array, ExtendedMatchResult& result,
+                        const std::vector<UserFaceprints>& existing_faceprints_array, ExtendedMatchResult& result,
                         const bool& probe_has_mask)
 {
     result.isSame = false;
@@ -323,7 +323,7 @@ bool Matcher::ValidateFaceprints(const MatchElement& faceprints)
 }
 
 ExtendedMatchResult Matcher::MatchFaceprintsToArray(const MatchElement& probe_faceprints,
-                                                    const std::vector<UserFaceprints_t>& existing_faceprints_array,
+                                                    const std::vector<UserFaceprints>& existing_faceprints_array,
                                                     Faceprints& updated_faceprints, 
                                                     const ThresholdsConfidenceEnum confidenceLevel)
 {
@@ -337,7 +337,7 @@ ExtendedMatchResult Matcher::MatchFaceprintsToArray(const MatchElement& probe_fa
 }
 
 ExtendedMatchResult Matcher::MatchFaceprintsToArray(const MatchElement& probe_faceprints,
-                                                    const std::vector<UserFaceprints_t>& existing_faceprints_array,
+                                                    const std::vector<UserFaceprints>& existing_faceprints_array,
                                                     Faceprints& updated_faceprints, const Thresholds& thresholds)
 {    
     ExtendedMatchResult result;
@@ -570,7 +570,7 @@ bool Matcher::LimitAdaptiveVector(feature_t* adaptive_faceprints_vec, const feat
     return success;
 }
 
-static void ConvertFaceprintsToUserFaceprints(const Faceprints& faceprints, UserFaceprints_t& extended_faceprints)
+static void ConvertFaceprintsToUserFaceprints(const Faceprints& faceprints, UserFaceprints& extended_faceprints)
 {
     extended_faceprints.faceprints.data.version = faceprints.data.version;
     extended_faceprints.faceprints.data.featuresType = faceprints.data.featuresType;
@@ -606,9 +606,9 @@ MatchResultInternal Matcher::MatchFaceprints(const MatchElement& probe_faceprint
 	}
 
     // init existing faceprints array
-    UserFaceprints_t existing_extended_faceprints;
+    UserFaceprints existing_extended_faceprints;
     ConvertFaceprintsToUserFaceprints(existing_faceprints, existing_extended_faceprints);
-    std::vector<UserFaceprints_t> existing_faceprints_array = {existing_extended_faceprints};
+    std::vector<UserFaceprints> existing_faceprints_array = {existing_extended_faceprints};
 
     // match using shared code
     ExtendedMatchResult result = MatchFaceprintsToArray(probe_faceprints, existing_faceprints_array, updated_faceprints, confidenceLevel);

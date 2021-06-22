@@ -25,25 +25,16 @@
 %include "std_string.i"
 %include "std_vector.i"
 %include "typemaps.i"
+%include "arrays_java.i"
+%include "cpointer.i"
+%include "carrays.i"
+%include "stdint.i"
 
-namespace std {
-   %template(StringVector) vector<string>;
-}
-
+%apply int { uint32_t };
 
 #define RSID_API
 #define ANDROID
 #cmakedefine RSID_SECURE
-
-// Define directors (allow C++ code to call Java code as well as the other way around)
-%feature("director") SignatureCallback;
-%feature("director") AuthenticationCallback;
-%feature("director") EnrollmentCallback;
-%feature("director") AuthFaceprintsExtractionCallback;
-%feature("director") EnrollFaceprintsExtractionCallback;
-%feature("director") PreviewImageReadyCallback;
-%feature("director") EventHandler;
-
 
 %typemap(jstype) std::string& OUTPUT "String[]"
 %typemap(jtype) std::string& OUTPUT "String[]"
@@ -68,8 +59,6 @@ namespace std {
 %apply std::string& OUTPUT { std::string& outFwVersion }
 %apply std::string& OUTPUT { std::string& outRecognitionVersion }
 %apply std::string& OUTPUT { std::string& serial }
-
-
 
 %typemap(jni) char **STRING_IN_OUT "jobjectArray"
 %typemap(jtype) char **STRING_IN_OUT "String[]"
@@ -167,20 +156,38 @@ namespace std {
 %typemap(freearg) unsigned char *BYTE ""
 %apply(unsigned char *BYTE) { unsigned char *buffer1 }
 
-%include "arrays_java.i"
+namespace std {
+    %template(StringVector) vector<string>;
+}
 
+// Define directors (allow C++ code to call Java code as well as the other way around)
+%feature("director") SignatureCallback;
+%feature("director") AuthenticationCallback;
+%feature("director") EnrollmentCallback;
+%feature("director") AuthFaceprintsExtractionCallback;
+%feature("director") EnrollFaceprintsExtractionCallback;
+%feature("director") PreviewImageReadyCallback;
+%feature("director") EventHandler;
+
+%template(FaceRectVector) std::vector<RealSenseID::FaceRect>;
+%template(FaceprintsVector) std::vector<RealSenseID::Faceprints>;
+%template(UserFaceprintsVector) std::vector<RealSenseID::UserFaceprints>;
+
+%include "@RealSenseID_HEADERS_FOLDER@/FaceRect.h"
+%include "@RealSenseID_HEADERS_FOLDER@/FaceprintsDefines.h"
+%include "@RealSenseID_HEADERS_FOLDER@/MatcherDefines.h"
 // API defined in RealSenseID
 %include "@RealSenseID_HEADERS_FOLDER@/AndroidSerialConfig.h"
 %include "@RealSenseID_HEADERS_FOLDER@/DeviceConfig.h"
 %include "@RealSenseID_HEADERS_FOLDER@/Status.h"
 %include "@RealSenseID_HEADERS_FOLDER@/SignatureCallback.h"
-%include "@RealSenseID_HEADERS_FOLDER@/AuthenticateStatus.h"
-%include "@RealSenseID_HEADERS_FOLDER@/AuthenticationCallback.h"
 %include "@RealSenseID_HEADERS_FOLDER@/Preview.h"
 %include "@RealSenseID_HEADERS_FOLDER@/FacePose.h"
-%include "@RealSenseID_HEADERS_FOLDER@/EnrollStatus.h"
-%include "@RealSenseID_HEADERS_FOLDER@/EnrollmentCallback.h"
 %include "@RealSenseID_HEADERS_FOLDER@/Faceprints.h"
+%include "@RealSenseID_HEADERS_FOLDER@/EnrollStatus.h"
+%include "@RealSenseID_HEADERS_FOLDER@/AuthenticateStatus.h"
+%include "@RealSenseID_HEADERS_FOLDER@/EnrollmentCallback.h"
+%include "@RealSenseID_HEADERS_FOLDER@/AuthenticationCallback.h"
 %include "@RealSenseID_HEADERS_FOLDER@/EnrollFaceprintsExtractionCallback.h"
 %include "@RealSenseID_HEADERS_FOLDER@/AuthFaceprintsExtractionCallback.h"
 %include "@RealSenseID_HEADERS_FOLDER@/FaceAuthenticator.h"

@@ -213,7 +213,7 @@ RSID_C_API rsid_authenticator* rsid_create_authenticator();
     RSID_C_API rsid_status rsid_authenticate_loop(rsid_authenticator* authenticator, const rsid_auth_args* args);
 
     /* detect spoof attempt */
-    RSID_C_API rsid_status rsid_detect_spoof(rsid_authenticator* authenticator, const rsid_auth_args* args);
+    //RSID_C_API rsid_status rsid_detect_spoof(rsid_authenticator* authenticator, const rsid_auth_args* args);
 
     /* authenticate in an infinite loop until cancel is called */
     RSID_C_API rsid_status rsid_cancel(rsid_authenticator* authenticator);

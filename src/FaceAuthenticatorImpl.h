@@ -76,8 +76,8 @@ public:
     MatchResultHost MatchFaceprints(MatchElement& new_faceprints, Faceprints& existing_faceprints,
                                     Faceprints& updated_faceprints, ThresholdsConfidenceEnum matcher_confidence_level=ThresholdsConfidenceEnum::ThresholdsConfidenceLevel_High);
 
-    Status GetUsersFaceprints(Faceprints* user_features, unsigned int& num_of_users);
-    Status SetUsersFaceprints(UserFaceprints* users_faceprints, unsigned int num_of_users);
+    Status GetUsersFaceprints(Faceprints user_features[], unsigned int& number_of_users_in_out);
+    Status SetUsersFaceprints(UserFaceprints users_faceprints[], unsigned int num_of_users);
 
 private:
 #ifdef RSID_SECURE

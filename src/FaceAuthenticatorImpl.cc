@@ -1331,7 +1331,8 @@ Status FaceAuthenticatorImpl::ExtractFaceprintsForAuth(AuthFaceprintsExtractionC
         {
             LOG_ERROR(LOG_TAG, "Session start failed with status %d", static_cast<int>(status));
             auto auth_status = ToAuthStatus(status);
-            callback.OnResult(auth_status, nullptr);
+            ExtractedFaceprints faceprints;
+            callback.OnResult(auth_status, faceprints);
             return ToStatus(status);
         }
         PacketManager::FaPacket fa_packet {PacketManager::MsgId::AuthenticateFaceprintsExtraction};
@@ -1340,7 +1341,8 @@ Status FaceAuthenticatorImpl::ExtractFaceprintsForAuth(AuthFaceprintsExtractionC
         {
             LOG_ERROR(LOG_TAG, "Failed sending fa packet (status %d)", (int)status);
             auto auth_status = ToAuthStatus(status);
-            callback.OnResult(auth_status, nullptr);
+            ExtractedFaceprints faceprints;
+            callback.OnResult(auth_status, faceprints);
             return ToStatus(status);
         }
         PacketManager::Timer session_timer {CommonValues::auth_max_timeout};
@@ -1350,7 +1352,8 @@ Status FaceAuthenticatorImpl::ExtractFaceprintsForAuth(AuthFaceprintsExtractionC
             if (session_timer.ReachedTimeout())
             {
                 LOG_ERROR(LOG_TAG, "session timeout");
-                callback.OnResult(AuthenticateStatus::Failure, nullptr);
+                ExtractedFaceprints faceprints;
+                callback.OnResult(AuthenticateStatus::Failure, faceprints);
                 Cancel();
             }
 
@@ -1362,7 +1365,8 @@ Status FaceAuthenticatorImpl::ExtractFaceprintsForAuth(AuthFaceprintsExtractionC
                 {
                     LOG_ERROR(LOG_TAG, "Failed receiving data packet (status %d)", (int)status);
                     auto auth_status = ToAuthStatus(status);
-                    callback.OnResult(auth_status, nullptr);
+                    ExtractedFaceprints faceprints;
+                    callback.OnResult(auth_status, faceprints);
                     return ToStatus(status);
                 }
 
@@ -1399,7 +1403,7 @@ Status FaceAuthenticatorImpl::ExtractFaceprintsForAuth(AuthFaceprintsExtractionC
                                   "adaptive faceprints (without mask) sizes does not match");
                     ::memcpy(faceprints.data.featuresVector, received_desc->featuresVector, copySize);
 
-                    callback.OnResult(AuthenticateStatus::Success, &faceprints);
+                    callback.OnResult(AuthenticateStatus::Success, faceprints);
                     continue;
                 }
                 else
@@ -1446,7 +1450,10 @@ Status FaceAuthenticatorImpl::ExtractFaceprintsForAuth(AuthFaceprintsExtractionC
                     received_faceprints_in_host = false;
                 }
                 else
-                    callback.OnResult(AuthenticateStatus(fa_status), nullptr);
+                {
+                    ExtractedFaceprints faceprints;
+                    callback.OnResult(AuthenticateStatus(fa_status), faceprints);
+                }
                 break;
             }
 
@@ -1469,7 +1476,8 @@ Status FaceAuthenticatorImpl::ExtractFaceprintsForAuth(AuthFaceprintsExtractionC
     catch (...)
     {
         LOG_ERROR(LOG_TAG, "Unknown exception");
-        callback.OnResult(AuthenticateStatus::Failure, nullptr);
+        ExtractedFaceprints faceprints;
+        callback.OnResult(AuthenticateStatus::Failure, faceprints);
         return Status::Error;
     }
 }
@@ -1494,7 +1502,7 @@ public:
     {
     }
 
-    void OnResult(const AuthenticateStatus status, const ExtractedFaceprints* faceprints) override
+    void OnResult(const AuthenticateStatus status, const ExtractedFaceprints& faceprints) override
     {
         if (status == AuthenticateStatus::NoFaceDetected || status == AuthenticateStatus::DeviceError ||
             status == AuthenticateStatus::SerialError || status == AuthenticateStatus::Failure)
@@ -1572,7 +1580,7 @@ bool FaceAuthenticatorImpl::ValidateUserId(const char* user_id)
     return is_valid;
 }
 
-Status FaceAuthenticatorImpl::GetUsersFaceprints(Faceprints* user_features, unsigned int& num_of_users)
+Status FaceAuthenticatorImpl::GetUsersFaceprints(Faceprints user_features[], unsigned int& number_of_users_in_out)
 {
     auto status = _session.Start(_serial.get());
     bool all_is_well = true;
@@ -1582,8 +1590,8 @@ Status FaceAuthenticatorImpl::GetUsersFaceprints(Faceprints* user_features, unsi
         LOG_ERROR(LOG_TAG, "Session start failed with status %d", static_cast<int>(status));
         return ToStatus(status);
     }
-    QueryNumberOfUsers(num_of_users);
-    for (uint16_t i = 0; i < num_of_users; i++)
+    QueryNumberOfUsers(number_of_users_in_out);
+    for (uint16_t i = 0; i < number_of_users_in_out; i++)
     {
         try
         {
@@ -1658,7 +1666,7 @@ Status FaceAuthenticatorImpl::GetUsersFaceprints(Faceprints* user_features, unsi
     return all_is_well ? Status::Ok : ToStatus(bad_status);
 }
 
-Status FaceAuthenticatorImpl::SetUsersFaceprints(UserFaceprints_t* user_features, unsigned int num_of_users)
+Status FaceAuthenticatorImpl::SetUsersFaceprints(UserFaceprints user_features[], unsigned int num_of_users)
 {
     bool all_users_set = true;
     auto status = _session.Start(_serial.get());
@@ -1671,7 +1679,7 @@ Status FaceAuthenticatorImpl::SetUsersFaceprints(UserFaceprints_t* user_features
     {
         try
         {
-            UserFaceprints_t& user_desc = user_features[i];
+            UserFaceprints& user_desc = user_features[i];
             const char* user_id = user_desc.user_id;
             if (!ValidateUserId(user_id))
             {

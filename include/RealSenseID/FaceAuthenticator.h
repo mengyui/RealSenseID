@@ -273,7 +273,7 @@ public:
      * @param[out] Number of users exported from the device.
      * @return Status (Status::Ok on success).
      */
-    Status GetUsersFaceprints(Faceprints* user_features, unsigned int& num_of_users);
+    Status GetUsersFaceprints(std::vector<Faceprints>& user_features_out, unsigned int&number_of_users_in_out);
 
     /**
      * Insert each user entry from the array into the device's database.
@@ -281,7 +281,7 @@ public:
      * @param[in] Number of users in the array.
      * @return Status (Status::Ok on success).
      */
-    Status SetUsersFaceprints(UserFaceprints* user_features, unsigned int num_of_users);
+    Status SetUsersFaceprints(std::vector<UserFaceprints>& user_features, unsigned int num_of_users);
 
 private:
     FaceAuthenticatorImpl* _impl = nullptr;

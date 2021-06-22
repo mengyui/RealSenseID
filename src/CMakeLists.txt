@@ -72,7 +72,7 @@ target_compile_definitions(${LIBRSID_CPP_TARGET}
         $<$<BOOL:${RSID_SECURE}>:RSID_SECURE>
 )
 
-set_target_properties(PROPERTIES DEBUG_POSTFIX ${RSID_DEBUG_POSTFIX})
+set_target_properties(${LIBRSID_CPP_TARGET} PROPERTIES DEBUG_POSTFIX ${RSID_DEBUG_POSTFIX})
 
 add_subdirectory("${SRC_DIR}/Logger")
 add_subdirectory("${SRC_DIR}/PacketManager")

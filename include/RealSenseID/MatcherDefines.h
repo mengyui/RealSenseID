@@ -10,9 +10,10 @@ namespace RealSenseID
 {
 #endif // __cplusplus
 
-typedef short match_calc_t;
+//typedef short match_calc_t;
+using match_calc_t = short;
 
- /**
+/**
  * Result used by the Matcher module.
  */
 struct MatchResultHost

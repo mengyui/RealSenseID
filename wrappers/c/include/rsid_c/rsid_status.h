@@ -177,8 +177,8 @@ extern "C"
     RSID_C_API const char* rsid_enroll_status_str(rsid_enroll_status status);
     RSID_C_API const char* rsid_face_pose_str(rsid_face_pose pose);
     RSID_C_API const char* rsid_auth_settings_rotation(rsid_camera_rotation_type rotation);
-    RSID_C_API const char* rsid_auth_settings_level(rsid_security_level_type level);
-    RSID_C_API const char* rsid_auth_settings_algo_mode(rsid_algo_mode_type mode);
+    //RSID_C_API const char* rsid_auth_settings_level(rsid_security_level_type level);
+    //RSID_C_API const char* rsid_auth_settings_algo_mode(rsid_algo_mode_type mode);
 
 #ifdef __cplusplus
 }
