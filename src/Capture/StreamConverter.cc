@@ -87,7 +87,7 @@ StreamConverter::StreamConverter(PreviewConfig config) : _portrait_mode(config.p
     _result_image.size = (_attributes.format == MJPEG) ? _result_image.width * _result_image.height * RGB_PIXEL_SIZE
                                                       : (_result_image.width * _result_image.height / 4) * 5;
     _result_image.stride = _result_image.size / _result_image.height;
-    _result_image.buffer = new unsigned char[_result_image.size];
+    _result_image.pixel_buffer = new unsigned char[_result_image.size];
     InitDecompressor();
 }
 
@@ -95,10 +95,10 @@ StreamConverter::~StreamConverter()
 {
     ::jpeg_destroy_decompress(&_jpeg_dinfo);
 
-    if (_result_image.buffer != nullptr)
+    if (_result_image.pixel_buffer != nullptr)
     {
-        delete[] _result_image.buffer;
-        _result_image.buffer = nullptr;
+        delete[] _result_image.pixel_buffer;
+        _result_image.pixel_buffer = nullptr;
     }
 }
 
@@ -130,7 +130,7 @@ bool StreamConverter::DecodeJpeg(Image* res, buffer frame_buffer)
     unsigned char* buffer_array[1];
     while (_jpeg_dinfo.output_scanline < _jpeg_dinfo.output_height)
     {        
-        buffer_array[0] = res->buffer + (_jpeg_dinfo.output_scanline) * row_stride;
+        buffer_array[0] = res->pixel_buffer + (_jpeg_dinfo.output_scanline) * row_stride;
         ::jpeg_read_scanlines(&_jpeg_dinfo, buffer_array, 1);
     }
 
@@ -172,7 +172,7 @@ bool StreamConverter::Buffer2Image(Image* res,const buffer& frame_buffer,const b
         res->metadata = ExtractMetadataFromMDBuffer(md_buffer);
         if (res->metadata.timestamp == 0) // don't return non-dumped images
             return false;
-        ::memcpy(res->buffer, frame_buffer.data, frame_buffer.size);
+        ::memcpy(res->pixel_buffer, frame_buffer.data, frame_buffer.size);
         return true;
         break;
     default:

@@ -139,22 +139,24 @@
 %apply unsigned int& OUTPUT { unsigned int& number_of_users }
 %apply unsigned int& INOUT { unsigned int& number_of_users_in_out }
 
-%typemap(jni) unsigned char *BYTE "jbyteArray"
-%typemap(jtype) unsigned char *BYTE "byte[]"
-%typemap(jstype) unsigned char *BYTE "byte[]"
-%typemap(in) unsigned char *BYTE {
+%typemap(jni) (const unsigned char* buffer) "jbyteArray"
+%typemap(jtype) (const unsigned char* buffer) "byte[]"
+%typemap(jstype) (const unsigned char* buffer) "byte[]"
+%typemap(in) (const unsigned char* buffer) {
   $1 = (unsigned char *) JCALL2(GetByteArrayElements, jenv, $input, 0); 
 }
 
-%typemap(argout) unsigned char *BYTE {
+%typemap(argout) (const unsigned char* buffer) {
   JCALL3(ReleaseByteArrayElements, jenv, $input, (jbyte *) $1, 0); 
 }
 
-%typemap(javain) unsigned char *BYTE "$javainput"
+%typemap(javain) (const unsigned char* buffer) "$javainput"
 
 /* Prevent default freearg typemap from being used */
-%typemap(freearg) unsigned char *BYTE ""
-%apply(unsigned char *BYTE) { unsigned char *buffer1 }
+%typemap(freearg) (const unsigned char* buffer) ""
+%apply(const unsigned char *buffer) { unsigned char *buffer }
+//%apply(unsigned char *buffer) { unsigned char *outSig }
+//%apply(const unsigned char *buffer) { const unsigned char* sig }
 
 namespace std {
     %template(StringVector) vector<string>;
@@ -198,8 +200,8 @@ namespace std {
 namespace RealSenseID {
     %extend struct Image
     {
-        void GetImageBuffer(unsigned char *buffer1) {
-            memcpy(buffer1, $self->buffer, $self->size);
+        void GetImageBuffer(unsigned char *buffer) {
+            memcpy(buffer, $self->pixel_buffer, $self->size);
         }
     };
 }

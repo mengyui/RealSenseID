@@ -51,6 +51,7 @@ public class FilesListActivity extends AppCompatActivity implements FilesListFra
             if (!connection.OpenConnection()) {
                 throw new RuntimeException("Couldn't open connection to USB device");
             }
+
             com.intel.realsenseid.api.AndroidSerialConfig config = new com.intel.realsenseid.api.AndroidSerialConfig();
             config.setFileDescriptor(connection.GetFileDescriptor());
             config.setReadEndpoint(connection.GetReadEndpointAddress());

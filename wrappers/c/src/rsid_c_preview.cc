@@ -11,7 +11,7 @@ namespace
 RealSenseID::Image c_img_to_api_image(const rsid_image* in_img)
 {
     RealSenseID::Image out_img;
-    out_img.buffer = in_img->buffer;
+    out_img.pixel_buffer = in_img->buffer;
     out_img.size = in_img->size;
     out_img.width = in_img->width;
     out_img.height = in_img->height;
@@ -28,7 +28,7 @@ RealSenseID::Image c_img_to_api_image(const rsid_image* in_img)
 rsid_image api_image_to_c_img(const RealSenseID::Image* in_img)
 {
     rsid_image out_img;
-    out_img.buffer = in_img->buffer;
+    out_img.buffer = in_img->pixel_buffer;
     out_img.size = in_img->size;
     out_img.width = in_img->width;
     out_img.height = in_img->height;

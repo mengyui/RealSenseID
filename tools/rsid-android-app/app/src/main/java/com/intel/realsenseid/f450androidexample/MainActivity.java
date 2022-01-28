@@ -1371,4 +1371,24 @@ public class MainActivity extends AppCompatActivity {
         }
         return arr;
     }
+
+    public void ExecuteEnrollImage(View view) {
+        Log.d(TAG, "ExecuteEnrollImage");
+        if (m_faceAuthenticator == null) {
+            Log.d(TAG, "faceAuthenticator is null");
+            return;
+        }
+        // MainActivity.this.m_hostMode
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                DoWhileConnected(() -> {
+                    Status authenticateStatus = Status.Error;
+                    m_faceAuthenticator.EnrollImageFeatureExtraction("User", null, 640, 480, null);
+                    Log.d(TAG, "Authentication done with status: " + authenticateStatus.toString());
+                    setEnableToList(true);
+                });
+            }
+        }).start();
+    }
 }

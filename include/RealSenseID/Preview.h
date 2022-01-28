@@ -48,7 +48,7 @@ struct RSID_API ImageMetadata
  */
 struct RSID_API Image
 {
-    unsigned char* buffer = nullptr;
+    unsigned char* pixel_buffer = nullptr;
     unsigned int size = 0;
     unsigned int width = 0;
     unsigned int height = 0;

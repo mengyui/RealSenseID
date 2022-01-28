@@ -24,7 +24,7 @@ public:
      * @param[out] outSig Output signature (64 bytes).
      * @return True if succeeded and false otherwise.
      */
-    virtual bool Sign(const unsigned char* buffer, const unsigned int bufferLen, unsigned char* outSig) = 0;
+    virtual bool Sign(const unsigned char* in_buffer, const unsigned int bufferLen, unsigned char* outSig) = 0;
 
     /**
      * Called to verify the buffer and the given signature.
@@ -36,7 +36,7 @@ public:
      * @param[in] sigLen Length of signature.
      * @return True if succeeded and verified, false otherwise.
      */
-    virtual bool Verify(const unsigned char* buffer, const unsigned int bufferLen, const unsigned char* sig,
+    virtual bool Verify(const unsigned char* in_buffer, const unsigned int bufferLen, const unsigned char* sig,
                         const unsigned int sigLen) = 0;
 };
 } // namespace RealSenseID

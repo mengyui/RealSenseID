@@ -18,24 +18,24 @@ inline uint8_t Raw8Value(const uint8_t* src, int baseoff, int mod5)
 
 void RawHelper::InitBuffer(int width, int height)
 {
-    if (_result_img.buffer != nullptr)
+    if (_result_img.pixel_buffer != nullptr)
     {
-        delete[] _result_img.buffer;
-        _result_img.buffer = nullptr;
+        delete[] _result_img.pixel_buffer;
+        _result_img.pixel_buffer = nullptr;
     }
     _result_img.width = width;
     _result_img.height = height;
     _result_img.size = width * height * RGB_PIXEL_SIZE;
     _result_img.stride = _result_img.size / height;
-    _result_img.buffer = new unsigned char[_result_img.size];
+    _result_img.pixel_buffer = new unsigned char[_result_img.size];
 }
 
 RawHelper::~RawHelper()
 {
-    if (_result_img.buffer != nullptr)
+    if (_result_img.pixel_buffer != nullptr)
     {
-        delete[] _result_img.buffer;
-        _result_img.buffer = nullptr;
+        delete[] _result_img.pixel_buffer;
+        _result_img.pixel_buffer = nullptr;
     }
 }
 // rotation tools
@@ -103,8 +103,8 @@ Image RawHelper::RotateRaw(Image& src_img)
     }
     int n = src_img.height;
     int m = src_img.width;
-    auto input = src_img.buffer;
-    auto temp = _result_img.buffer;
+    auto input = src_img.pixel_buffer;
+    auto temp = _result_img.pixel_buffer;
     for (int i = 0; i < n; i++)
     {
         for (int j = 0; j < m; j++)
@@ -144,8 +144,8 @@ Image RawHelper::ConvertToRgb(const Image& src_img)
 
     unsigned int line = src_img.size / src_height;
 
-    const unsigned char* src = src_img.buffer;
-    unsigned char* dst = _result_img.buffer;
+    const unsigned char* src = src_img.pixel_buffer;
+    unsigned char* dst = _result_img.pixel_buffer;
 
     const int palette = 128;
     unsigned int i;
@@ -282,7 +282,7 @@ Image RawHelper::ConvertToRgb(const Image& src_img)
     dst_img.width = dst_width;
     dst_img.height = dst_height;
     dst_img.size = _result_img.size;
-    dst_img.buffer = dst;
+    dst_img.pixel_buffer = dst;
     dst_img.stride = dst_img.size / dst_img.height;
     dst_img.metadata = src_img.metadata;
     return dst_img;
