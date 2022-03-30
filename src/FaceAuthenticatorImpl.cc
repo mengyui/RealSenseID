@@ -75,6 +75,8 @@ Status FaceAuthenticatorImpl::Connect(const SerialConfig& config)
         LOG_ERROR(LOG_TAG, "Serial connection method not supported for OS");
         return Status::Error;
 #endif // WIN32
+        if (PacketManager::SerialStatus::Ok != _serial->SendBytes(PacketManager::Commands::init_usb_uart, ::strlen(PacketManager::Commands::init_usb_uart)))
+            return Status::SerialError;
         return Status::Ok;
     }
     catch (const std::exception& ex)
@@ -99,6 +101,8 @@ Status FaceAuthenticatorImpl::Connect(const AndroidSerialConfig& config)
 
         _serial = std::make_unique<PacketManager::AndroidSerial>(config.fileDescriptor, config.readEndpoint,
                                                                  config.writeEndpoint);
+        if (PacketManager::SerialStatus::Ok != _serial->SendBytes(PacketManager::Commands::init_usb_uart, ::strlen(PacketManager::Commands::init_usb_uart)))
+            return Status::SerialError;
         return Status::Ok;
     }
     catch (const std::exception& ex)

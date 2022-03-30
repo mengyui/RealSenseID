@@ -143,6 +143,7 @@ enum class MsgId : char
             static const char* version_info = "\r\nbspver\r\n";
             static const char* device_info = "\r\nbspver -device\r\n";
             static const char* reset = "\r\nreset\r\n";
+            static const char* init_usb_uart = "\r\ninit 2\r\n";
         } // namespace Commands
     } // namespace PacketManager
 }; // namespace RealSenseID
