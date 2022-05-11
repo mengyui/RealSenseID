@@ -314,7 +314,8 @@ Status FaceAuthenticatorImpl::Enroll(EnrollmentCallback& callback, const char* u
 }
 
 
-Status FaceAuthenticatorImpl::SendImageToDevice(const unsigned char* buffer, unsigned int width, unsigned int height)
+Status FaceAuthenticatorImpl::SendImageToDevice(const unsigned char* buffer, unsigned int width, unsigned int height,
+                                                SendingImageCallback& callback)
 {
     if (buffer == nullptr)
     {
@@ -353,12 +354,15 @@ Status FaceAuthenticatorImpl::SendImageToDevice(const unsigned char* buffer, uns
 
     auto width_16 = static_cast<uint16_t>(width);
     auto height_16 = static_cast<uint16_t>(height);
-
+    static int times = 0;
     LOG_DEBUG(LOG_TAG, "Sending %d chunks..", n_chunks);
     char chunk[chunk_size];
     size_t total_image_bytes_sent = 0;
     for (uint32_t i = 0; i < n_chunks; i++)
     {
+        if (callback.AbortSendingImage(i, n_chunks))
+            return Status::Error;
+
         auto status = _session.Start(_serial.get());
         if (status != PacketManager::SerialStatus::Ok)
         {
@@ -411,14 +415,15 @@ Status FaceAuthenticatorImpl::SendImageToDevice(const unsigned char* buffer, uns
 //    chunk format: [chunk-number (2 bytes)] [width (2 bytes)] [height (2 bytes)] [buffer (chunk size-6)]
 //    Wait for ack response ('e' packet)
 // Send 'EnrollImage' Fa packet with the user id and return the response to the caller.
-EnrollStatus FaceAuthenticatorImpl::EnrollImage(const char* user_id, const unsigned char* buffer, unsigned int width, unsigned int height)
+EnrollStatus FaceAuthenticatorImpl::EnrollImage(const char* user_id, const unsigned char* buffer, unsigned int width,
+                                                unsigned int height, SendingImageCallback& callback)
 {
     if (!ValidateUserId(user_id))
     {
         return EnrollStatus::Failure;
     }
 
-    Status imageSendingStatus = SendImageToDevice(buffer, width, height);
+    Status imageSendingStatus = SendImageToDevice(buffer, width, height, callback);
     if (Status::Ok != imageSendingStatus)
     {
 		LOG_ERROR(LOG_TAG, "Error sending the image to the device. status %d", static_cast<int>(imageSendingStatus));
@@ -451,7 +456,9 @@ EnrollStatus FaceAuthenticatorImpl::EnrollImage(const char* user_id, const unsig
     return EnrollStatus(fa_packet.GetStatusCode());
 }
 
-EnrollStatus FaceAuthenticatorImpl::EnrollImageFeatureExtraction(const char* user_id, const unsigned char* buffer, unsigned int width, unsigned int height, ExtractedFaceprints* faceprints)
+EnrollStatus FaceAuthenticatorImpl::EnrollImageFeatureExtraction(
+    const char* user_id, const unsigned char* buffer, unsigned int width, unsigned int height,
+    ExtractedFaceprints* faceprints, SendingImageCallback& callback)
 {
 	if (!ValidateUserId(user_id))
 	{
@@ -464,7 +471,7 @@ EnrollStatus FaceAuthenticatorImpl::EnrollImageFeatureExtraction(const char* use
         return EnrollStatus::Failure;
     }
 
-	Status imageSendingStatus = SendImageToDevice(buffer, width, height);
+    Status imageSendingStatus = SendImageToDevice(buffer, width, height, callback);
 	if (Status::Ok != imageSendingStatus)
 	{
 		LOG_ERROR(LOG_TAG, "Error sending the image to the device. status %d", static_cast<int>(imageSendingStatus));

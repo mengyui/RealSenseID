@@ -3,7 +3,6 @@ package com.intel.realsenseid.f450androidexample;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
-import android.content.ContextWrapper;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -20,7 +19,6 @@ import android.view.TextureView;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -57,6 +55,7 @@ import com.intel.realsenseid.api.MatchResultHost;
 import com.intel.realsenseid.api.Preview;
 import com.intel.realsenseid.api.PreviewConfig;
 import com.intel.realsenseid.api.PreviewMode;
+import com.intel.realsenseid.api.SendingImageCallback;
 import com.intel.realsenseid.api.Status;
 import com.intel.realsenseid.api.UserFaceprints;
 import com.intel.realsenseid.api.UserFaceprintsVector;
@@ -66,22 +65,17 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
 
@@ -1378,13 +1372,20 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "faceAuthenticator is null");
             return;
         }
+
         // MainActivity.this.m_hostMode
         new Thread(new Runnable() {
             @Override
             public void run() {
+                SendingImageCallback callback = new SendingImageCallback() {
+                    @Override
+                    public boolean AbortSendingImage(int idx, int total) {
+                        return false; // RETURN TRUE IF ABORT ENROLLIMAGE
+                    }
+                };
                 DoWhileConnected(() -> {
                     Status authenticateStatus = Status.Error;
-                    m_faceAuthenticator.EnrollImageFeatureExtraction("User", null, 640, 480, null);
+                    m_faceAuthenticator.EnrollImageFeatureExtraction("User", null, 640, 480, null, callback);
                     Log.d(TAG, "Authentication done with status: " + authenticateStatus.toString());
                     setEnableToList(true);
                 });

@@ -14,6 +14,7 @@
 	#include "RealSenseID/Faceprints.h"
 	#include "RealSenseID/EnrollFaceprintsExtractionCallback.h"
 	#include "RealSenseID/AuthFaceprintsExtractionCallback.h"
+	#include "RealSenseID/SendingImageCallback.h"
 	#include "RealSenseID/FaceAuthenticator.h"
 	#include "RealSenseID/DeviceController.h"
 	#include "RealSenseID/FwUpdater.h"
@@ -168,6 +169,7 @@ namespace std {
 %feature("director") EnrollmentCallback;
 %feature("director") AuthFaceprintsExtractionCallback;
 %feature("director") EnrollFaceprintsExtractionCallback;
+%feature("director") SendingImageCallback;
 %feature("director") PreviewImageReadyCallback;
 %feature("director") EventHandler;
 
@@ -192,6 +194,7 @@ namespace std {
 %include "@RealSenseID_HEADERS_FOLDER@/AuthenticationCallback.h"
 %include "@RealSenseID_HEADERS_FOLDER@/EnrollFaceprintsExtractionCallback.h"
 %include "@RealSenseID_HEADERS_FOLDER@/AuthFaceprintsExtractionCallback.h"
+%include "@RealSenseID_HEADERS_FOLDER@/SendingImageCallback.h"
 %include "@RealSenseID_HEADERS_FOLDER@/FaceAuthenticator.h"
 %include "@RealSenseID_HEADERS_FOLDER@/DeviceController.h"
 %include "@RealSenseID_HEADERS_FOLDER@/FwUpdater.h"

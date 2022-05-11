@@ -8,6 +8,7 @@
 #include "RealSenseID/AuthFaceprintsExtractionCallback.h"
 #include "RealSenseID/EnrollFaceprintsExtractionCallback.h"
 #include "RealSenseID/EnrollmentCallback.h"
+#include "RealSenseID/SendingImageCallback.h"
 #include "RealSenseID/Faceprints.h"
 #include "RealSenseID/SerialConfig.h"
 #include "RealSenseID/SignatureCallback.h"
@@ -117,7 +118,8 @@ public:
      * @param[in] height image height.
      * @return EnrollStatus (EnrollStatus::Success on success).
      */
-    EnrollStatus EnrollImage(const char* user_id, const unsigned char* buffer, unsigned int width, unsigned int height);
+    EnrollStatus EnrollImage(const char* user_id, const unsigned char* buffer, unsigned int width, unsigned int height,
+                             SendingImageCallback& callback);
 
     /**
      * Extract features from RGB image.
@@ -128,7 +130,9 @@ public:
      * @param[out] the extracted faceprints from the image.
      * @return EnrollStatus (EnrollStatus::Success on success).
      */
-    EnrollStatus EnrollImageFeatureExtraction(const char* user_id, const unsigned char* buffer, unsigned int width, unsigned int height, ExtractedFaceprints* pExtractedFaceprints);
+    EnrollStatus EnrollImageFeatureExtraction(const char* user_id, const unsigned char* buffer, unsigned int width,
+                                              unsigned int height, ExtractedFaceprints* pExtractedFaceprints,
+                                              SendingImageCallback& callback);
 
     /**
      * Attempt to authenticate.

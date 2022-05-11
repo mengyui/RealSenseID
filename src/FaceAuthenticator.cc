@@ -64,14 +64,18 @@ Status FaceAuthenticator::Enroll(EnrollmentCallback& callback, const char* user_
     return _impl->Enroll(callback, user_id);
 }
 
-EnrollStatus FaceAuthenticator::EnrollImage(const char* user_id, const unsigned char* buffer, unsigned int width, unsigned int height)
+EnrollStatus FaceAuthenticator::EnrollImage(const char* user_id, const unsigned char* buffer, unsigned int width,
+                                            unsigned int height, SendingImageCallback& callback)
 {
-    return _impl->EnrollImage(user_id, buffer, width, height);
+    return _impl->EnrollImage(user_id, buffer, width, height, callback);
 }
 
-EnrollStatus FaceAuthenticator::EnrollImageFeatureExtraction(const char* user_id, const unsigned char* buffer, unsigned int width, unsigned int height, ExtractedFaceprints* pExtractedFaceprints)
+EnrollStatus FaceAuthenticator::EnrollImageFeatureExtraction(const char* user_id, const unsigned char* buffer,
+                                                             unsigned int width, unsigned int height,
+                                                             ExtractedFaceprints* pExtractedFaceprints,
+                                                             SendingImageCallback& callback)
 {
-    return _impl->EnrollImageFeatureExtraction(user_id, buffer, width, height, pExtractedFaceprints);
+    return _impl->EnrollImageFeatureExtraction(user_id, buffer, width, height, pExtractedFaceprints, callback);
 }
 
 Status FaceAuthenticator::Authenticate(AuthenticationCallback& callback)

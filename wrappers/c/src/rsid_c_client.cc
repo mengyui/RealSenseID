@@ -589,9 +589,10 @@ rsid_status rsid_enroll(rsid_authenticator* authenticator, const rsid_enroll_arg
 
 rsid_enroll_status rsid_extract_faceprints_from_image(rsid_authenticator* authenticator, const char* user_id, const unsigned char* buffer, unsigned width, unsigned height, rsid_faceprints_t* c_faceprints)
 {
-	auto* auth_impl = get_auth_impl(authenticator);	
+    RealSenseID::SendingImageCallback callback;
+    auto* auth_impl = get_auth_impl(authenticator);
     ExtractedFaceprints extractedFaceprints;
-    RealSenseID::EnrollStatus status = auth_impl->EnrollImageFeatureExtraction(user_id, buffer, width, height, &extractedFaceprints);
+    RealSenseID::EnrollStatus status = auth_impl->EnrollImageFeatureExtraction(user_id, buffer, width, height, &extractedFaceprints, callback);
 
     if (RealSenseID::EnrollStatus::Success == status) {
 
@@ -604,9 +605,10 @@ rsid_enroll_status rsid_extract_faceprints_from_image(rsid_authenticator* authen
 rsid_enroll_status rsid_enroll_image(rsid_authenticator* authenticator, const char* user_id, const unsigned char* buffer,
                                      unsigned width, unsigned height)
 {
+    RealSenseID::SendingImageCallback callback;
     auto* auth_impl = get_auth_impl(authenticator);
     RealSenseID::EnrollStatus status;
-    status = auth_impl->EnrollImage(user_id, buffer, width, height);
+    status = auth_impl->EnrollImage(user_id, buffer, width, height, callback);
     
     return static_cast<rsid_enroll_status>(status);
 }

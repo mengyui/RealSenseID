@@ -8,6 +8,7 @@
 #include "RealSenseID/AuthFaceprintsExtractionCallback.h"
 #include "RealSenseID/EnrollFaceprintsExtractionCallback.h"
 #include "RealSenseID/EnrollmentCallback.h"
+#include "RealSenseID/SendingImageCallback.h"
 #include "RealSenseID/Faceprints.h"
 #include "RealSenseID/SerialConfig.h"
 #include "RealSenseID/SignatureCallback.h"
@@ -54,8 +55,11 @@ public:
 #endif
 
     Status Enroll(EnrollmentCallback& callback, const char* user_id);
-    EnrollStatus EnrollImage(const char* user_id, const unsigned char* buffer, unsigned int width, unsigned int height);
-    EnrollStatus EnrollImageFeatureExtraction(const char* user_id, const unsigned char* buffer, unsigned int width, unsigned int height, ExtractedFaceprints* faceprints);
+    EnrollStatus EnrollImage(const char* user_id, const unsigned char* buffer, unsigned int width, unsigned int height,
+                             SendingImageCallback& callback);
+    EnrollStatus EnrollImageFeatureExtraction(const char* user_id, const unsigned char* buffer, unsigned int width,
+                                              unsigned int height, ExtractedFaceprints* faceprints,
+                                              SendingImageCallback& callback);
     Status Authenticate(AuthenticationCallback& callback);
     Status AuthenticateLoop(AuthenticationCallback& callback);
     Status Cancel();
@@ -68,7 +72,8 @@ public:
     Status QueryNumberOfUsers(unsigned int& number_of_users);
     Status Standby();
 
-    Status SendImageToDevice(const unsigned char* buffer, unsigned int width, unsigned int height);
+    Status SendImageToDevice(const unsigned char* buffer, unsigned int width, unsigned int height,
+                             SendingImageCallback& callback);
     Status ExtractFaceprintsForEnroll(EnrollFaceprintsExtractionCallback& callback);
     Status ExtractFaceprintsForAuth(AuthFaceprintsExtractionCallback& callback);
     Status ExtractFaceprintsForAuthLoop(AuthFaceprintsExtractionCallback& callback);
