@@ -387,7 +387,12 @@ namespace rsid_wrapper_csharp
         {
             Regex sku2Option1 = new Regex(@"12[02]\d6228\d{4}.*");
             Regex sku2Option2 = new Regex(@"\d{4}6229\d{4}.*");
-            if (sku2Option1.Match(deviceSerialNumber).Success || sku2Option2.Match(deviceSerialNumber).Success)
+            Regex sku2Option3 = new Regex(@"\d{4}62[3-9]\d{5}.*");
+            if (
+                sku2Option1.Match(deviceSerialNumber).Success
+                || sku2Option2.Match(deviceSerialNumber).Success
+                || sku2Option3.Match(deviceSerialNumber).Success
+                )
             {
                 return "sku2";
             }
